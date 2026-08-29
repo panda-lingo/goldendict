@@ -1,0 +1,171 @@
+html {
+  background-color: white;
+}
+
+body {
+  margin: 0;
+  background: white;
+}
+
+a {
+  text-decoration: none;
+  color: #18a3fa;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.gdarticle {
+  margin-top: 0.1em;
+  margin-bottom: 0.4em;
+  padding: 5px;
+  border: 1px solid #d0dde2;
+  border-radius: 8px;
+  background: white;
+  padding-left: 2em;
+  padding-right: 2em;
+}
+
+.gdactivearticle {
+  border: 1px solid #3399ff;
+}
+
+.gdarticleseparator + script + .gdactivearticle .gddictname {
+  border-top: 1px solid #3399ff;
+}
+
+.gdarticleseparator {
+  display: none;
+  clear: both;
+}
+
+/* Hide the 'From ' string which precedes dictionary name in the heading */
+.gdfromprefix {
+  display: none;
+}
+
+.gddictname {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 12px;
+  font-weight: normal;
+  border: 0;
+  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  margin: -6px;
+  margin-bottom: 5px;
+  margin-left: 2px;
+  padding-right: 0.3em;
+  color: #4480f8;
+  background: #e0e8f0;
+  user-select: none;
+  cursor: default;
+}
+
+/* Actual text with the dictionary title */
+.gddicttitle {
+  display: block;
+  order: 1;
+}
+
+.gdactivearticle .gddictname {
+  font-weight: normal;
+  margin: -6px;
+  margin-bottom: 5px;
+  margin-left: 2px;
+  border: 1px solid #3399ff;
+  color: #0066cc;
+  background: #deecf8;
+}
+
+.gdcollapsedarticle .gddictname {
+  opacity: 0.7;
+}
+
+/* Nice diagonal pattern for the collapsed article */
+.gdcollapsedarticle {
+  background-image: linear-gradient(
+    to bottom right,
+    #ccc 0%,
+    #ccc 25%,
+    #bbb 25%,
+    #bbb 50%,
+    #ccc 50%,
+    #ccc 75%,
+    #bbb 75%
+  );
+  background-size: 50px 50px;
+}
+
+/* Move the collapse/expand buttons to the last, 3rd position */
+.collapse_expand_area {
+  display: block;
+  order: 3;
+}
+
+.gddicticon {
+  display: block;
+  vertical-align: text-bottom;
+  padding-right: -1em;
+  padding-left: 0.3em;
+  order: 2;
+}
+
+.gddicticon img {
+  height: 1.3em;
+}
+
+.gdexpandicon,
+.gdexpandicon:hover,
+.gdcollapseicon,
+.gdcollapseicon:hover {
+  width: auto;
+  height: 100%;
+  vertical-align: text-bottom;
+}
+
+.gdexpandicon {
+  content: url("qrc:///icons/expand_article.svg");
+}
+
+.gdexpandicon:hover {
+  content: url("qrc:///icons/expand_article_hovered.svg");
+}
+
+.gdcollapseicon {
+  content: url("qrc:///icons/collapse_article.svg");
+}
+
+.gdcollapseicon:hover {
+  content: url("qrc:///icons/collapse_article_hovered.svg");
+}
+
+.gdarticlebody {
+  position: relative;
+}
+
+/* The first headword in a (possibly) multi-headword DSL article */
+.gdarticlebody > div:first-child .dsl_headwords {
+  margin-top: -3px;
+  display: inline-block;
+}
+
+.gdspellsuggestion {
+  /* Add some vertical space before the article */
+  margin-top: 1.5em;
+}
+
+.dsl_ex,
+.dsl_ex .dsl_opt {
+  color: steelblue;
+}
+
+::selection {
+  background: #cc0000;
+  color: #fff;
+}
+
+code::selection {
+  background: #333333;
+}

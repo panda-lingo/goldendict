@@ -1,0 +1,115 @@
+schemaVersion: 2
+goldendictNg:
+  repository: https://github.com/xiaoyifang/goldendict-ng
+  commit: 5ad66765aa423d381025566bff990f7d8007be84
+  observedVersionTag: v26.9.0_alpha.5ad66765aa
+  lockFile: native/upstream.lock
+  provenance:
+    script: native/provenance.sh
+    startupFields:
+      - upstreamCommit
+      - upstreamDirty
+      - upstreamDiffSha256
+nativeBridge:
+  protocol: JSON-lines worker behind the stable REST gateway
+  factories:
+    - Mdx::makeDictionaries
+    - Dsl::makeDictionaries
+    - Stardict::makeDictionaries
+  sourceManifest: native/CMakeLists.txt
+  adapter:
+    - app/adapters/native.py
+    - app/service.py
+  shims:
+    - native/shims
+    - native/src/headless_shims.cc
+  note: GoldenDict-ng loadDictionaries is a desktop/UI orchestrator and is intentionally not linked
+pythonFallback:
+  imageTarget: backend/Dockerfile runtime
+  readmdict:
+    package: readmdict
+    version: 0.1.1
+    note: app/adapters/mdict.py intentionally integrates with its private key and record-block indexes
+mappings:
+  - upstream:
+      - src/dict/dictionary.hh
+      - src/dict/dictionary.cc
+    native:
+      - native/src/main.cc
+      - app/adapters/native.py
+    behavior:
+      - exact article lookup
+      - prefix suggestions
+      - binary resources
+      - canonical GoldenDict-ng article HTML passthrough
+  - upstream:
+      - src/dict/mdx.cc
+      - src/dict/mdictparser.cc
+    native:
+      - native/CMakeLists.txt
+      - native/cmake/prepare_mdx_source.cmake
+      - native/src/resource_guard.hh
+      - native/src/main.cc
+      - native/tests/protocol_smoke.py
+      - native/tests/resource_guard_test.cc
+    fallback:
+      - app/adapters/mdict.py
+      - app/transform.py
+    behavior:
+      - MDX indexing and rendering
+      - companion MDD and local sidecar resources
+      - canonical local-resource containment after MDD redirects
+      - entry, audio, video, and internal-lookup links
+  - upstream:
+      - src/dict/dsl.cc
+      - src/dict/dsl_details.cc
+    native:
+      - native/CMakeLists.txt
+      - native/src/main.cc
+      - native/tests/protocol_smoke.py
+    fallback:
+      - app/adapters/dsl.py
+      - tests/test_dsl_adapter.py
+    behavior:
+      - DSL and dictzip-compressed DSL indexing
+      - DSL HTML rendering and companion resources
+  - upstream:
+      - src/dict/stardict.cc
+      - src/dict/xdxf2html.cc
+    native:
+      - native/CMakeLists.txt
+      - native/src/main.cc
+      - native/tests/protocol_smoke.py
+    fallback:
+      - app/adapters/stardict.py
+      - tests/test_stardict_adapter.py
+    behavior:
+      - StarDict bundle and synonym indexing
+      - typed record and XDXF-to-HTML rendering
+  - upstream:
+      - src/dict/tiff.cc
+      - src/dict/xdxf.cc
+    native:
+      - native/src/headless_shims.cc
+    behavior:
+      - headless TIFF-to-PNG conversion without QApplication
+      - minimal XDXF language lookup required by enabled factories
+  - upstream:
+      - src/article_maker.cc
+      - src/scripts/gd-builtin.js
+      - src/stylesheets/article-style.css
+    local:
+      - packages/frontend
+    behavior:
+      - GoldenDict article shell, URL routing, interaction, styles, and sandbox policy
+upgradeProcedure:
+  - check out the candidate GoldenDict-ng commit in a clean or intentionally modified worktree
+  - update native/upstream.lock and the frontend compatibility manifest only after reviewing the candidate
+  - build through native/build.sh so commit, dirty state, and relevant source-diff digest are attested
+  - resolve selected-source, interface, shim, Qt, and library drift explicitly; never copy parser implementations locally
+  - run native/tests/protocol_smoke.py and assert DSL/StarDict metadata, mainPath, article format, lookup, and suggestions
+  - run a real MDX/MDD fixture and verify lookup, bres/gdlookup/gdau links, CSS, binary media, and local JavaScript sidecars
+  - run the FastAPI suite and combined native REST image with GOLDENDICT_NATIVE_REQUIRED=true
+  - verify health/startupErrors, immutable OpenAPI routes, MIME/nosniff/ETag, traversal rejection, and worker lifecycle
+  - run frontend compatibility checks, scriptPolicy tests, type checking, and production package/demo builds
+  - record runtime dependency and image-size changes with the lock/source/shim update

@@ -1,0 +1,411 @@
+name: Build, test, and publish
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+
+concurrency:
+  group: ${{ github.event_name == 'release' && format('{0}-release', github.workflow) || format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+jobs:
+  frontend:
+    name: Frontend package and demo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      release_version: ${{ steps.release.outputs.version }}
+      package_name: ${{ steps.release.outputs.package_name }}
+      npm_dist_tag: ${{ steps.release.outputs.npm_dist_tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release metadata
+        if: github.event_name == 'release'
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: node .github/scripts/release-metadata.mjs
+
+      - name: Type-check package and demo
+        run: npm run typecheck
+
+      - name: Test frontend package
+        run: npm test
+
+      - name: Build package and demo
+        run: npm run build
+
+      - name: Verify publishable tarball
+        run: npm pack --dry-run --workspace @goldendict-web/frontend
+
+  backend:
+    name: Python API tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Build Python test image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: ./backend
+          target: test
+          load: true
+          tags: goldendict-api-python:test
+          provenance: false
+          cache-from: type=gha,scope=backend-python
+          cache-to: type=gha,mode=max,scope=backend-python
+
+      - name: Run backend test suite
+        run: docker run --rm goldendict-api-python:test
+
+  native:
+    name: Native image (${{ matrix.platform }})
+    if: github.event_name != 'release'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Read and cross-check GoldenDict-ng pin
+        id: upstream
+        run: node .github/scripts/upstream-metadata.mjs
+
+      - name: Check out pinned GoldenDict-ng
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.upstream.outputs.repository }}
+          ref: ${{ steps.upstream.outputs.commit }}
+          path: goldendict-ng
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify vendored GoldenDict-ng browser assets
+        run: node packages/frontend/scripts/sync-goldendict.mjs --check --source ./goldendict-ng
+
+      - name: Record clean upstream provenance
+        id: provenance
+        run: backend/native/provenance.sh ./goldendict-ng >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Build native API image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.native
+          target: native-runtime
+          build-contexts: |
+            goldendict-ng=./goldendict-ng
+          build-args: |
+            GOLDENDICT_NG_DIRTY=${{ steps.provenance.outputs.dirty }}
+            GOLDENDICT_NG_DIFF_SHA256=${{ steps.provenance.outputs.diff_sha256 }}
+            GOLDENDICT_NG_REQUIRE_CLEAN=ON
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: goldendict-api:native-ci-${{ matrix.arch }}
+          provenance: false
+          cache-from: type=gha,scope=native-ci-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=native-ci-${{ matrix.arch }}
+
+      - name: Smoke-test native protocol
+        run: >-
+          python3 backend/native/tests/protocol_smoke.py
+          --image goldendict-api:native-ci-${{ matrix.arch }}
+
+      - name: Smoke-test combined API startup
+        run: >-
+          python3 backend/native/tests/container_smoke.py
+          --image goldendict-api:native-ci-${{ matrix.arch }}
+
+  release-image-platform:
+    name: Publish image digest (${{ matrix.platform }})
+    if: github.event_name == 'release'
+    needs:
+      - frontend
+      - backend
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Read and cross-check GoldenDict-ng pin
+        id: upstream
+        run: node .github/scripts/upstream-metadata.mjs
+
+      - name: Check out pinned GoldenDict-ng
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.upstream.outputs.repository }}
+          ref: ${{ steps.upstream.outputs.commit }}
+          path: goldendict-ng
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify vendored GoldenDict-ng browser assets
+        run: node packages/frontend/scripts/sync-goldendict.mjs --check --source ./goldendict-ng
+
+      - name: Record clean upstream provenance
+        id: provenance
+        run: backend/native/provenance.sh ./goldendict-ng >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push platform image by digest
+        id: push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.native
+          target: native-runtime
+          build-contexts: |
+            goldendict-ng=./goldendict-ng
+          build-args: |
+            GOLDENDICT_NG_DIRTY=${{ steps.provenance.outputs.dirty }}
+            GOLDENDICT_NG_DIFF_SHA256=${{ steps.provenance.outputs.diff_sha256 }}
+            GOLDENDICT_NG_REQUIRE_CLEAN=ON
+          platforms: ${{ matrix.platform }}
+          labels: |
+            org.opencontainers.image.title=GoldenDict Web API
+            org.opencontainers.image.description=Headless GoldenDict-ng dictionary REST service
+            org.opencontainers.image.licenses=GPL-3.0-or-later
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.frontend.outputs.release_version }}
+          tags: ${{ env.REGISTRY_IMAGE }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+          cache-from: type=gha,scope=native-release-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=native-release-${{ matrix.arch }}
+
+      - name: Smoke-test published digest
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          docker pull "${REGISTRY_IMAGE}@${IMAGE_DIGEST}"
+          python3 backend/native/tests/protocol_smoke.py --image "${REGISTRY_IMAGE}@${IMAGE_DIGEST}"
+          python3 backend/native/tests/container_smoke.py --image "${REGISTRY_IMAGE}@${IMAGE_DIGEST}"
+
+      - name: Export digest marker
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          digest_hex=${IMAGE_DIGEST#sha256:}
+          test "${#digest_hex}" -eq 64
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${digest_hex}"
+
+      - name: Upload digest marker
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  release-image-manifest:
+    name: Publish multi-architecture manifest
+    if: github.event_name == 'release'
+    needs:
+      - frontend
+      - backend
+      - release-image-platform
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Download platform digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.release.tag_name }}
+            type=sha,format=long
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+          labels: |
+            org.opencontainers.image.title=GoldenDict Web API
+            org.opencontainers.image.description=Headless GoldenDict-ng dictionary REST service
+            org.opencontainers.image.licenses=GPL-3.0-or-later
+
+      - name: Create and verify multi-architecture manifest
+        id: manifest
+        env:
+          DIGESTS_DIRECTORY: ${{ runner.temp }}/digests
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.metadata.outputs.json }}
+        run: node .github/scripts/create-image-manifest.mjs
+
+      - name: Attest published image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.REGISTRY_IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Show published manifest
+        run: docker buildx imagetools inspect "${{ steps.manifest.outputs.reference }}"
+
+  publish-frontend:
+    name: Publish frontend package to npm
+    if: github.event_name == 'release'
+    needs:
+      - frontend
+      - backend
+      - release-image-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js for trusted publishing
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend package
+        run: npm run build --workspace @goldendict-web/frontend
+
+      - name: Check whether version is already published
+        id: npm-version
+        env:
+          PACKAGE_NAME: ${{ needs.frontend.outputs.package_name }}
+          PACKAGE_VERSION: ${{ needs.frontend.outputs.release_version }}
+        run: |
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish frontend package
+        if: steps.npm-version.outputs.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_DIST_TAG: ${{ needs.frontend.outputs.npm_dist_tag }}
+        run: >-
+          npm publish
+          --workspace @goldendict-web/frontend
+          --access public
+          --provenance
+          --tag "${NPM_DIST_TAG}"
+
+      - name: Report existing package version
+        if: steps.npm-version.outputs.publish == 'false'
+        run: echo "The npm package version already exists; leaving it unchanged."

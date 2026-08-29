@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GoldenDict Web reusable frontend package demo">
+    <title>GoldenDict Web · Package demo</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-brand" href="/" aria-label="GoldenDict Web demo home">
+        <span class="brand-mark" aria-hidden="true">G</span>
+        <span><strong>GoldenDict Web</strong><small>Frontend package demo</small></span>
+      </a>
+      <div class="connection"><span id="connection-dot"></span><span id="connection-text">Connecting…</span></div>
+    </header>
+
+    <div class="layout">
+      <aside class="control-panel" aria-label="Dictionary demo controls">
+        <section>
+          <div class="section-heading"><h2>Service</h2><button id="refresh" class="text-button" type="button">Refresh</button></div>
+          <label for="api-base">API base URL</label>
+          <input id="api-base" value="/api/v1" autocomplete="url" spellcheck="false">
+          <p class="hint">Dictionaries configured on the server are loaded automatically at startup.</p>
+        </section>
+
+        <section>
+          <div class="section-heading"><h2>Dictionaries</h2><button id="select-all" class="text-button" type="button">Select all</button></div>
+          <div id="dictionary-list" class="dictionary-list" aria-live="polite">
+            <p class="hint">Loading dictionaries…</p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Dictionary compatibility</h2>
+          <label for="script-policy">Sidecar JavaScript</label>
+          <select id="script-policy">
+            <option value="none">Disabled (safer default)</option>
+            <option value="sandboxed">Enabled in sandbox</option>
+          </select>
+          <p class="hint">Enable this for bundles that depend on local files such as <code>dict.js</code>. Scripts remain in an opaque-origin iframe without host-page access.</p>
+        </section>
+
+        <section>
+          <h2>Brand theme</h2>
+          <div class="field-grid">
+            <label for="preset">Article preset</label>
+            <select id="preset">
+              <option value="default">GoldenDict default</option>
+              <option value="modern">Modern</option>
+              <option value="classic">Classic</option>
+              <option value="lingvo">Lingvo</option>
+              <option value="babylon">Babylon</option>
+              <option value="lingoes">Lingoes</option>
+              <option value="lingoes-blue">Lingoes Blue</option>
+            </select>
+            <label for="theme-mode">Color mode</label>
+            <select id="theme-mode">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="auto">System</option>
+            </select>
+          </div>
+          <label for="brand-name">Brand name</label>
+          <input id="brand-name" value="Northstar Lexicon">
+          <label for="logo-url">Logo URL <span>(optional)</span></label>
+          <input id="logo-url" placeholder="https://example.com/logo.svg" autocomplete="url">
+          <div class="color-grid">
+            <label>Accent <input id="accent-color" type="color" value="#3459d6"></label>
+            <label>Links <input id="link-color" type="color" value="#175cd3"></label>
+            <label>Background <input id="background-color" type="color" value="#ffffff"></label>
+            <label>Headers <input id="header-color" type="color" value="#eaf0ff"></label>
+          </div>
+          <label for="custom-css">Consumer CSS <span>(optional)</span></label>
+          <textarea id="custom-css" rows="3" spellcheck="false" placeholder=".gdarticle { box-shadow: …; }"></textarea>
+          <button id="reset-theme" class="text-button reset-button" type="button">Reset theme</button>
+        </section>
+      </aside>
+
+      <main class="content">
+        <form id="search-form" class="search-bar" role="search">
+          <label class="sr-only" for="query">Look up a word</label>
+          <input id="query" value="example" placeholder="Look up a word…" autocomplete="off" autofocus>
+          <button type="submit">Look up</button>
+        </form>
+        <div class="result-meta">
+          <span id="view-state" class="state-pill">Idle</span>
+          <span id="lookup-time"></span>
+        </div>
+        <goldendict-view id="dictionary-view" api-base="/api/v1"></goldendict-view>
+
+        <details class="event-panel">
+          <summary>Package event log</summary>
+          <ol id="event-log" aria-live="polite"></ol>
+        </details>
+      </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

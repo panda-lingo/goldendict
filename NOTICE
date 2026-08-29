@@ -1,0 +1,13 @@
+GoldenDict Web
+Copyright (C) 2026 GoldenDict Web contributors
+
+This project includes and adapts stylesheet and interaction behavior from
+GoldenDict-ng, inspected at commit 5ad66765aa423d381025566bff990f7d8007be84.
+GoldenDict-ng is Copyright (C) its contributors and is licensed under the
+GNU General Public License, version 3 or (at your option) any later version.
+
+GoldenDict-ng source: https://github.com/xiaoyifang/goldendict-ng
+GoldenDict-ng license: https://www.gnu.org/licenses/gpl-3.0.html
+
+Third-party dictionary data is not included. Dictionary files loaded by an
+operator retain their own copyright and license terms.

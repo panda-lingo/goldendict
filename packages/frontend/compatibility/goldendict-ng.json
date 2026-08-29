@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "https://github.com/xiaoyifang/goldendict-ng",
+  "sourceCommit": "5ad66765aa423d381025566bff990f7d8007be84",
+  "files": [
+    {
+      "source": "src/stylesheets/article-style.css",
+      "target": "src/styles/vendor/article-style.css",
+      "sha256": "bc32587d792eb4356ff14144ba7dd4f50387fea3da46d698d916abe8e399a6cf"
+    },
+    {
+      "source": "src/stylesheets/article-style-print.css",
+      "target": "src/styles/vendor/article-style-print.css",
+      "sha256": "38ee88e493fa75209358b249ca961634b2283b3bed6d08a8757bbc97160ea44c"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-babylon.css",
+      "target": "src/styles/vendor/article-style-st-babylon.css",
+      "sha256": "0a964205347c882a84e12b4eb8d7597f0de5c714fdc1bf07c160197e8f9c91a5"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-classic.css",
+      "target": "src/styles/vendor/article-style-st-classic.css",
+      "sha256": "e296636180c09f038e0a2a4f6568778fb976f2bbbd9d2aaefc37b9c7b9e1db5c"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-lingoes-blue.css",
+      "target": "src/styles/vendor/article-style-st-lingoes-blue.css",
+      "sha256": "4dba61cb48a12aa4fa3bed38007f2dfdf2a73b8ce47f4c1dff24c154145d1a98"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-lingoes.css",
+      "target": "src/styles/vendor/article-style-st-lingoes.css",
+      "sha256": "1e824212e1939e3dfe0d4cf8dcc84653861f43a2ac93fd90b3e981b8643f9c7e"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-lingvo.css",
+      "target": "src/styles/vendor/article-style-st-lingvo.css",
+      "sha256": "46af275e95b77bd62d2f1f7871b9388948157c6a9d74b9a099e7c45c3084e115"
+    },
+    {
+      "source": "src/stylesheets/article-style-st-modern.css",
+      "target": "src/styles/vendor/article-style-st-modern.css",
+      "sha256": "472f9a7b46ee8630fcd62d8ddbd9c497c1a9b1bd1d858045f6ea5120e4dd3173"
+    },
+    {
+      "source": "icons/arrow.svg",
+      "target": "src/assets/icons/arrow.svg",
+      "sha256": "2f5cc96107c85e2de06effd60da93eb66cf6fd42c41735cd613aa0754d662ce1"
+    },
+    {
+      "source": "icons/audio.png",
+      "target": "src/assets/icons/audio.png",
+      "sha256": "62602d0b26b52d01a755f61a79b74a13e70506d749de592bc0277968f426d21b"
+    },
+    {
+      "source": "icons/collapse_article.svg",
+      "target": "src/assets/icons/collapse_article.svg",
+      "sha256": "31225b1f5175d9228e2d6df431ac0f3b3f83be052ddeb8c8953477f0878a9e7c"
+    },
+    {
+      "source": "icons/collapse_article_hovered.svg",
+      "target": "src/assets/icons/collapse_article_hovered.svg",
+      "sha256": "a344f2c4e786e13eec0207842fafc92fd8423729417a206a63aa85fabef360c1"
+    },
+    {
+      "source": "icons/collapse_opt.svg",
+      "target": "src/assets/icons/collapse_opt.svg",
+      "sha256": "bd3a4b1f247c94f821c302d830de2b4abc41501cf02bf35fee31edd476a8319f"
+    },
+    {
+      "source": "icons/document.png",
+      "target": "src/assets/icons/document.png",
+      "sha256": "e7d9535b2af245bdde32d64c42e05dfc39b1cd386a3421d92e1be3812c677d01"
+    },
+    {
+      "source": "icons/downarrow.svg",
+      "target": "src/assets/icons/downarrow.svg",
+      "sha256": "aa37ca948750c6b10bfe6ab148f76d4609d450f89a91aca1b594f7e9e470d4df"
+    },
+    {
+      "source": "icons/expand_article.svg",
+      "target": "src/assets/icons/expand_article.svg",
+      "sha256": "36710ea63514394432df2374ba5208fd88104c8af131f6448d2b30731a393f8a"
+    },
+    {
+      "source": "icons/expand_article_hovered.svg",
+      "target": "src/assets/icons/expand_article_hovered.svg",
+      "sha256": "72df7d60275dfb839afd2d3362361588d6b11933942a7e439f5ca5722cf647ad"
+    },
+    {
+      "source": "icons/expand_opt.svg",
+      "target": "src/assets/icons/expand_opt.svg",
+      "sha256": "bb80df18e8373a0ca4193aeba36634f01187b2167897f6fb48df2ac06394a616"
+    },
+    {
+      "source": "icons/old-arrow.svg",
+      "target": "src/assets/icons/old-arrow.svg",
+      "sha256": "e6d38fac33954c10b98bb9588320018066c07a26a56ab2a2714aadbc0f6c32ae"
+    },
+    {
+      "source": "icons/old-downarrow.svg",
+      "target": "src/assets/icons/old-downarrow.svg",
+      "sha256": "5a54afcc8324c6b9584af3a31de21511cfa1d9f30e932ec29de8dedd11c4d8e8"
+    },
+    {
+      "source": "icons/playsound.svg",
+      "target": "src/assets/icons/playsound.svg",
+      "sha256": "3669e9c0849f8427b5a7eca851d8b8cd32e46103641d1eddaaa99c57ecbd4103"
+    },
+    {
+      "source": "icons/video.svg",
+      "target": "src/assets/icons/video.svg",
+      "sha256": "52bf7f497ab385cdd49b005f3b91aeb501a0c5cf6967aa26c8024cddc265fe5e"
+    },
+    {
+      "source": "icons/warning.svg",
+      "target": "src/assets/icons/warning.svg",
+      "sha256": "146a94e2fa053f254789dbe46b4c3bbab82e1dc4aab12707318d07dd8faf23e2"
+    },
+    {
+      "source": "LICENSE.txt",
+      "target": "LICENSE",
+      "sha256": "83d204405035f7b10a2a6772d28307c3c8b8d2e485055cac16a77335e8956e70"
+    }
+  ],
+  "sourceDirty": false,
+  "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

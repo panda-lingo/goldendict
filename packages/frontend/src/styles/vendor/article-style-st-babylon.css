@@ -1,0 +1,98 @@
+html {
+  background-color: white;
+}
+
+body {
+  background: white;
+}
+
+.gdarticle {
+  background: white;
+}
+
+h3 {
+  font-size: 1em;
+}
+
+::selection {
+  background: #4492e8;
+  color: white;
+}
+
+/* Dictionary's name heading */
+.gddictname {
+  font-weight: normal;
+  font-size: 11px;
+  border: none;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 0px;
+  background: #f0eded;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.gddicticon {
+  display: inline;
+  padding-right: 5px;
+}
+
+.gddicticon img {
+  border: 0;
+  height: 16px;
+  vertical-align: text-top;
+}
+
+/* The 'From ' string which precedes dictionary name in the heading */
+.gdfromprefix {
+  display: none;
+}
+
+/* Move the collapse/expand buttons to the right */
+.collapse_expand_area {
+  float: right;
+  margin-right: 2px;
+}
+
+.gdexpandicon,
+.gdexpandicon:hover,
+.gdcollapseicon,
+.gdcollapseicon:hover {
+  width: auto;
+  height: 100%;
+  vertical-align: text-bottom;
+}
+
+.gdexpandicon {
+  content: url("qrc:///icons/expand_article.svg");
+}
+
+.gdexpandicon:hover {
+  content: url("qrc:///icons/expand_article_hovered.svg");
+}
+
+.gdcollapseicon {
+  content: url("qrc:///icons/collapse_article.svg");
+}
+
+.gdcollapseicon:hover {
+  content: url("qrc:///icons/collapse_article_hovered.svg");
+}
+
+.bglpos {
+  color: black;
+  font-weight: bold;
+  font-size: 11px;
+  background: #f0eded;
+  display: inline;
+}
+
+.bgltrn {
+  color: #808080;
+  font-size: 12px;
+  display: inline;
+}
+
+a,
+.mwiki a {
+  color: #0066cc;
+}

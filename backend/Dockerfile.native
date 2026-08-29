@@ -1,0 +1,105 @@
+# syntax=docker/dockerfile:1.7
+
+FROM ubuntu:24.04 AS native-build
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      build-essential \
+      cmake \
+      git \
+      libbz2-dev \
+      libfmt-dev \
+      liblzma-dev \
+      liblzo2-dev \
+      qt6-base-dev \
+      qt6-svg-dev \
+      zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# These are optional for a normal checkout (CMake recomputes them), but let the
+# build wrapper attest a linked worktree whose .git pointer is outside the
+# Docker named context. Local upstream changes remain buildable and traceable.
+ARG GOLDENDICT_NG_DIRTY=
+ARG GOLDENDICT_NG_DIFF_SHA256=
+ARG GOLDENDICT_NG_REQUIRE_CLEAN=OFF
+
+WORKDIR /src/worker
+COPY native/ ./
+COPY --from=goldendict-ng . /src/goldendict-ng
+
+RUN locked_commit="$(sed -n 's/^commit=//p' upstream.lock)" \
+    && cmake -S . -B /build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DGOLDENDICT_NG_SOURCE=/src/goldendict-ng \
+      -DGOLDENDICT_NG_COMMIT="${locked_commit}" \
+      -DGOLDENDICT_NG_DIRTY="${GOLDENDICT_NG_DIRTY}" \
+      -DGOLDENDICT_NG_DIFF_SHA256="${GOLDENDICT_NG_DIFF_SHA256}" \
+      -DGOLDENDICT_NG_REQUIRE_CLEAN="${GOLDENDICT_NG_REQUIRE_CLEAN}" \
+    && cmake --build /build --parallel "$(nproc)" \
+    && ctest --test-dir /build --output-on-failure \
+    && cmake --install /build --prefix /opt/native
+
+FROM ubuntu:24.04 AS python-environment
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      build-essential \
+      liblzo2-dev \
+      python3-dev \
+      python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY requirements.txt ./
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --disable-pip-version-check --no-cache-dir -r requirements.txt
+
+FROM ubuntu:24.04 AS native-runtime
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      libbz2-1.0 \
+      libfmt9 \
+      liblzma5 \
+      liblzo2-2 \
+      libqt6concurrent6 \
+      libqt6core6t64 \
+      libqt6gui6 \
+      libqt6svg6 \
+      libqt6widgets6 \
+      libqt6xml6 \
+      python3 \
+      zlib1g \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 goldendict \
+    && useradd --system --uid 10001 --gid goldendict --home-dir /var/lib/goldendict goldendict \
+    && install -d -o goldendict -g goldendict \
+      /app \
+      /dictionaries \
+      /var/lib/goldendict \
+      /var/lib/goldendict/indices
+
+COPY --from=python-environment /opt/venv /opt/venv
+COPY --from=native-build /opt/native/bin/goldendict-native-worker /usr/local/bin/goldendict-native-worker
+COPY --chown=goldendict:goldendict app /app/app
+
+ENV PATH=/opt/venv/bin:$PATH \
+    GOLDENDICT_DICTIONARY_ROOTS=/dictionaries \
+    GOLDENDICT_NATIVE_INDEX_DIR=/var/lib/goldendict/indices \
+    GOLDENDICT_NATIVE_REQUIRED=true \
+    GOLDENDICT_NATIVE_WORKER=/usr/local/bin/goldendict-native-worker \
+    GOLDENDICT_RUNTIME_CATALOG_MUTATIONS=false \
+    GOLDENDICT_STARTUP_SCAN=true \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+USER goldendict
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5m --retries=3 \
+  CMD ["python", "-m", "app.healthcheck"]
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips=127.0.0.1"]
