@@ -11,7 +11,8 @@ The repository contains three independently usable pieces:
   headless GoldenDict-ng C++ worker and scans configured local paths at startup.
   There is no file-upload endpoint.
 - `packages/frontend/` — the framework-independent
-  `@panda-lingo/goldendict` package and `<goldendict-view>` custom element.
+  `@panda-lingo/goldendict` package and responsive `<goldendict-view>` custom
+  element.
 - `demo/` — a real consumer of the package public API with dictionary,
   display-preset, light/dark, and custom-brand controls.
 
@@ -50,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.0`; for example:
+container and npm package version and defaults to `0.1.1`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.0 \
+GOLDENDICT_RELEASE=0.1.1 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -197,7 +198,9 @@ those local sidecars as `text/javascript` with
 the frontend's safe default removes dictionary scripts and inline handlers.
 Execution requires the consumer to choose `scriptPolicy = "sandboxed"`, and is
 still confined to the opaque-origin iframe. Such an iframe sends an Origin of
-`null` for XHR/fetch. The Compose demo explicitly permits
+`null` for XHR/fetch. The bundled demo chooses this compatibility mode for its
+locally mounted dictionaries so its default rendering matches GoldenDict-ng;
+the reusable component still defaults to script removal. The Compose demo permits
 `http://localhost:5173,null` so opted-in dictionary JavaScript can request its
 resources; enable the `null` CORS origin only in deployments that intentionally
 use this opaque-origin sandbox behavior. The backend's general default CORS
@@ -236,7 +239,7 @@ review workflow.
 make verify
 ```
 
-That runs frontend checksum contracts, 21 package tests, type checking,
+That runs frontend checksum contracts, package tests, type checking,
 production package/demo builds, and the backend's Dockerized test suite. To add
 the real local MDX/MDD gate:
 

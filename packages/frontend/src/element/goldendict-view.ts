@@ -16,19 +16,21 @@ import type {
 import { GOLDENDICT_EVENTS } from "../types";
 
 const SHADOW_STYLES = `
-  :host{display:block;min-width:0;color:#222;font-family:system-ui,sans-serif}
-  .shell{position:relative;min-height:8rem;border-radius:var(--gd-host-radius,8px);overflow:hidden;background:var(--gd-host-background,#fff)}
-  .brand{display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;border-bottom:1px solid var(--gd-host-border,#e3e3e3);background:var(--gd-host-surface,#f7f9fb);font-weight:650}
+  :host{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;color:#222;font-family:system-ui,sans-serif;container:goldendict-view / inline-size}
+  .shell{position:relative;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:8rem;border-radius:var(--gd-host-radius,8px);overflow:hidden;background:var(--gd-host-background,#fff)}
+  .brand{display:flex;align-items:center;gap:.65rem;min-width:0;padding:.65rem .9rem;border-bottom:1px solid var(--gd-host-border,#e3e3e3);background:var(--gd-host-surface,#f7f9fb);font-weight:650}
   .brand[hidden]{display:none}
-  .brand img{display:block;width:1.75rem;height:1.75rem;object-fit:contain}
+  .brand img{display:block;flex:0 0 auto;width:1.75rem;height:1.75rem;object-fit:contain}
   .brand img[hidden]{display:none}
+  .brand span{min-width:0;overflow-wrap:anywhere}
   .status{display:grid;place-items:center;min-height:8rem;padding:1.25rem;text-align:center;color:var(--gd-host-muted,#59636e)}
   .status[hidden]{display:none}
   .status[data-state="error"]{color:var(--gd-host-error,#a21d2d)}
   .spinner{width:1.25rem;height:1.25rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .7rem}
-  iframe{display:block;width:100%;min-height:8rem;border:0;background:transparent}
+  iframe{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:8rem;border:0;background:transparent}
   iframe[hidden]{display:none}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @container goldendict-view (max-width:30rem){.brand{gap:.5rem;padding:.55rem .65rem}.status{padding:1rem .75rem}}
   @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
 `;
 
@@ -60,7 +62,7 @@ export class GoldenDictView extends HTMLElement {
   ];
 
   readonly instanceId = makeInstanceId();
-  private readonly frame: HTMLIFrameElement;
+  private frame: HTMLIFrameElement;
   private readonly statusElement: HTMLDivElement;
   private readonly brandElement: HTMLDivElement;
   private readonly brandImage: HTMLImageElement;
@@ -68,6 +70,8 @@ export class GoldenDictView extends HTMLElement {
   private clientValue: DictionaryClient;
   private requestController?: AbortController;
   private requestSequence = 0;
+  private renderSequence = 0;
+  private activeBridgeInstanceId?: string;
   private responseValue?: LookupResponse;
   private themeValue: GoldenDictTheme = {};
   private stateValue: ViewState = "idle";
@@ -92,7 +96,6 @@ export class GoldenDictView extends HTMLElement {
     this.brandImage = this.brandElement.querySelector("img") as HTMLImageElement;
     this.brandText = this.brandElement.querySelector("span") as HTMLSpanElement;
     this.clientValue = new DictionaryClient({ baseUrl: this.apiBase });
-    this.frame.addEventListener("load", () => this.handleFrameLoaded());
     this.updateBrand();
     this.setState("idle");
   }
@@ -226,7 +229,7 @@ export class GoldenDictView extends HTMLElement {
       const normalizedError =
         error instanceof Error ? error : new Error(String(error));
       this.responseValue = undefined;
-      this.frame.hidden = true;
+      this.resetFrame();
       this.setState("error", { word: normalizedWord, error: normalizedError });
     } finally {
       if (sequence === this.requestSequence) {
@@ -243,14 +246,14 @@ export class GoldenDictView extends HTMLElement {
   abort(): void {
     this.requestController?.abort();
     this.requestController = undefined;
+    this.renderSequence += 1;
+    this.resetFrame();
   }
 
   clear(): void {
     this.abort();
     this.requestSequence += 1;
     this.responseValue = undefined;
-    this.frame.removeAttribute("srcdoc");
-    this.frame.hidden = true;
     this.setState("idle");
   }
 
@@ -259,18 +262,53 @@ export class GoldenDictView extends HTMLElement {
   }
 
   private renderResponse(response: LookupResponse): void {
-    this.frame.style.height = "8rem";
-    this.frame.srcdoc = buildArticleDocument(response, {
+    const renderSequence = ++this.renderSequence;
+    const bridgeInstanceId = `${this.instanceId}-${renderSequence}`;
+    this.activeBridgeInstanceId = bridgeInstanceId;
+    const frame = this.replaceFrame(false);
+    frame.title = response.word
+      ? `Dictionary results for ${response.word}`
+      : "Dictionary article";
+    const srcdoc = buildArticleDocument(response, {
       apiBaseUrl: this.clientValue.baseUrl,
-      instanceId: this.instanceId,
+      instanceId: bridgeInstanceId,
       scriptPolicy: this.scriptPolicy,
       theme: this.themeValue,
     });
-    this.frame.title = response.word
-      ? `Dictionary results for ${response.word}`
-      : "Dictionary article";
-    this.frame.hidden = false;
-    this.statusElement.hidden = true;
+    requestAnimationFrame(() => {
+      if (renderSequence !== this.renderSequence || frame !== this.frame) {
+        return;
+      }
+      frame.srcdoc = srcdoc;
+      this.statusElement.hidden = true;
+    });
+  }
+
+  private resetFrame(): void {
+    this.activeBridgeInstanceId = undefined;
+    this.replaceFrame(true);
+  }
+
+  private replaceFrame(hidden: boolean): HTMLIFrameElement {
+    const previous = this.frame;
+    const frame = this.ownerDocument.createElement("iframe");
+    frame.setAttribute("part", "article");
+    frame.title = "Dictionary article";
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.referrerPolicy = "no-referrer";
+    frame.style.height = "8rem";
+    frame.hidden = hidden;
+    frame.addEventListener("load", () => {
+      if (this.frame === frame && frame.hasAttribute("srcdoc")) {
+        this.handleFrameLoaded();
+      }
+    });
+    previous.replaceWith(frame);
+    this.frame = frame;
+    // Cached dictionary CSS/JS can execute immediately during navigation.
+    // Establish a measurable, fresh browsing context before assigning srcdoc.
+    void frame.offsetWidth;
+    return frame;
   }
 
   private handleFrameLoaded(): void {
@@ -294,7 +332,7 @@ export class GoldenDictView extends HTMLElement {
     const message = event.data as BridgeMessage;
     if (
       message.namespace !== "goldendict-web" ||
-      message.instanceId !== this.instanceId ||
+      message.instanceId !== this.activeBridgeInstanceId ||
       !message.type
     ) {
       return;
@@ -308,6 +346,10 @@ export class GoldenDictView extends HTMLElement {
         const height = Number(detail.height);
         if (Number.isFinite(height) && height > 0) {
           this.frame.style.height = `${Math.min(Math.max(height, 128), 100_000)}px`;
+          // A valid measurement proves that the current bridge is initialized.
+          // Do not keep the host in loading state while slow images or fonts
+          // delay the iframe's window load event.
+          this.handleFrameLoaded();
         }
         break;
       }
@@ -448,10 +490,13 @@ export class GoldenDictView extends HTMLElement {
   }
 
   private postCommand(message: Record<string, unknown>): void {
+    if (!this.activeBridgeInstanceId) {
+      return;
+    }
     this.frame.contentWindow?.postMessage(
       {
         namespace: "goldendict-web",
-        instanceId: this.instanceId,
+        instanceId: this.activeBridgeInstanceId,
         ...message,
       },
       "*",

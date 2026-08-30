@@ -32,16 +32,28 @@ const connection = element<HTMLDivElement>("connection-text").parentElement as H
 const connectionText = element<HTMLSpanElement>("connection-text");
 const eventLog = element<HTMLOListElement>("event-log");
 const toast = element<HTMLDivElement>("toast");
+const demoControls = element<HTMLDetailsElement>("demo-controls");
+const compactLayout = globalThis.matchMedia("(max-width: 820px)");
 let client = new DictionaryClient({ baseUrl: apiBaseInput.value });
 let dictionaries: DictionarySummary[] = [];
 let toastTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
+function syncDemoControls(event: MediaQueryList | MediaQueryListEvent): void {
+  demoControls.open = !event.matches;
+}
+
+syncDemoControls(compactLayout);
+compactLayout.addEventListener("change", syncDemoControls);
+if (!compactLayout.matches) {
+  queryInput.focus();
+}
+
 const DEMO_PALETTES = {
   light: {
-    accentColor: "#3459d6",
+    accentColor: LIGHT_THEME_TOKENS.accentColor,
     linkColor: LIGHT_THEME_TOKENS.linkColor,
     backgroundColor: LIGHT_THEME_TOKENS.backgroundColor,
-    headerColor: "#eaf0ff",
+    headerColor: LIGHT_THEME_TOKENS.headerColor,
   },
   dark: {
     accentColor: DARK_THEME_TOKENS.accentColor,
@@ -193,6 +205,8 @@ scriptPolicyInput.addEventListener("change", () => {
   dictionaryView.scriptPolicy =
     scriptPolicyInput.value === "sandboxed" ? "sandboxed" : "none";
 });
+dictionaryView.scriptPolicy =
+  scriptPolicyInput.value === "sandboxed" ? "sandboxed" : "none";
 
 for (const id of [
   "preset",
@@ -225,7 +239,7 @@ globalThis.matchMedia?.("(prefers-color-scheme: dark)").addEventListener(
 document.getElementById("reset-theme")?.addEventListener("click", () => {
   element<HTMLSelectElement>("preset").value = "default";
   element<HTMLSelectElement>("theme-mode").value = "light";
-  element<HTMLInputElement>("brand-name").value = "Northstar Lexicon";
+  element<HTMLInputElement>("brand-name").value = "";
   element<HTMLInputElement>("logo-url").value = "";
   element<HTMLTextAreaElement>("custom-css").value = "";
   applyModePalette("light");

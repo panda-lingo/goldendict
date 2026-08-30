@@ -4,6 +4,7 @@ import {
   GOLDENDICT_PRINT_CSS,
   getGoldenDictPresetCss,
 } from "../styles/fidelity";
+import { GOLDENDICT_RESPONSIVE_CSS } from "../styles/responsive";
 import type {
   GoldenDictTheme,
   LookupArticle,
@@ -12,7 +13,7 @@ import type {
 } from "../types";
 import { prepareArticleHtml } from "./article-html";
 import { resolveResourceUrl } from "./link-router";
-import { escapeStyleText, themeToCss } from "./theme";
+import { escapeStyleText, resolveThemeMode, themeToCss } from "./theme";
 
 export interface ArticleDocumentOptions {
   apiBaseUrl: string;
@@ -98,10 +99,14 @@ function renderSuggestions(suggestions: readonly string[]): string {
   </div>`;
 }
 
-function bridgeScript(instanceId: string): string {
+function bridgeScript(
+  instanceId: string,
+  themeMode: "light" | "dark",
+): string {
   const config = JSON.stringify({
     namespace: "goldendict-web",
     instanceId,
+    themeMode,
     expandOptIcon: BUILTIN_ASSET_URLS["expand_opt.svg"],
     collapseOptIcon: BUILTIN_ASSET_URLS["collapse_opt.svg"],
   }).replace(/<\//g, "<\\/");
@@ -116,6 +121,27 @@ function bridgeScript(instanceId: string): string {
     },"*");
     const articleOf=(target)=>target instanceof Element?target.closest(".gdarticle"):null;
     const articleId=(article)=>article?.getAttribute("data-gd-id")||"";
+    const syncDictionaryTheme=()=>{
+      if(document.documentElement.getAttribute("data-gd-theme")!==config.themeMode){
+        document.documentElement.setAttribute("data-gd-theme",config.themeMode);
+      }
+      if(document.documentElement.getAttribute("data-darkreader-scheme")!==config.themeMode){
+        document.documentElement.setAttribute("data-darkreader-scheme",config.themeMode);
+      }
+      document.querySelectorAll(".oaldpe").forEach((container)=>{
+        if(container.getAttribute("data-theme")!==config.themeMode){
+          container.setAttribute("data-theme",config.themeMode);
+        }
+      });
+    };
+    const themeObserver=new MutationObserver(syncDictionaryTheme);
+    themeObserver.observe(document.documentElement,{
+      subtree:true,
+      childList:true,
+      attributes:true,
+      attributeFilter:["data-theme","data-darkreader-scheme"]
+    });
+    syncDictionaryTheme();
     const setActive=(article,notify=true)=>{
       if(!article)return;
       document.querySelector(".gdactivearticle")?.classList.remove("gdactivearticle");
@@ -206,9 +232,22 @@ function bridgeScript(instanceId: string): string {
       const header=target.closest(".gddictname");
       if(header){event.preventDefault();toggleArticle(articleOf(header));}
     });
-    const requestSize=()=>requestAnimationFrame(()=>post("height",{
-      height:Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)
-    }));
+    let resizeFrame=0;
+    let lastHeight=0;
+    const requestSize=()=>{
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame=requestAnimationFrame(()=>{
+        resizeFrame=0;
+        const height=Math.ceil(Math.max(
+          document.body.scrollHeight,
+          document.body.offsetHeight,
+          document.body.getBoundingClientRect().height
+        ));
+        if(height===lastHeight)return;
+        lastHeight=height;
+        post("height",{height});
+      });
+    };
     addEventListener("message",(event)=>{
       const message=event.data;
       if(event.source!==parent||message?.namespace!==config.namespace||message?.instanceId!==config.instanceId)return;
@@ -218,7 +257,9 @@ function bridgeScript(instanceId: string): string {
         article?.scrollIntoView({block:"start"});setActive(article,false);
       }
     });
-    new ResizeObserver(requestSize).observe(document.documentElement);
+    const resizeObserver=new ResizeObserver(requestSize);
+    resizeObserver.observe(document.body);
+    addEventListener("resize",requestSize,{passive:true});
     addEventListener("load",()=>{requestSize();post("ready",{});});
   })();`;
 }
@@ -252,6 +293,7 @@ export function buildArticleDocument(
   options: ArticleDocumentOptions,
 ): string {
   const theme = options.theme ?? {};
+  const themeMode = resolveThemeMode(theme.mode);
   const nonce = options.instanceId.replace(/[^a-zA-Z0-9_-]/g, "");
   const articles = response.articles
     .map((article) =>
@@ -265,18 +307,19 @@ export function buildArticleDocument(
     ? `${response.word} — ${theme.brandName}`
     : response.word;
   return `<!doctype html>
-<html><head>
+<html data-gd-theme="${themeMode}" data-darkreader-scheme="${themeMode}"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="${escapeHtml(contentSecurityPolicy(options.scriptPolicy, nonce))}">
   <title>${escapeHtml(title)}</title>
   <style>${escapeStyleText(GOLDENDICT_BASE_CSS)}</style>
   <style>${escapeStyleText(getGoldenDictPresetCss(theme.preset))}</style>
+  <style data-gd-style="responsive">${escapeStyleText(GOLDENDICT_RESPONSIVE_CSS)}</style>
   <style>${themeToCss(theme)}</style>
   <style media="print">${escapeStyleText(GOLDENDICT_PRINT_CSS)}</style>
 </head><body>
   ${content}
   ${renderSuggestions(response.suggestions)}
-  <script nonce="${nonce}">${bridgeScript(options.instanceId).replace(/<\/script/gi, "<\\/script")}</script>
+  <script nonce="${nonce}">${bridgeScript(options.instanceId, themeMode).replace(/<\/script/gi, "<\\/script")}</script>
 </body></html>`;
 }

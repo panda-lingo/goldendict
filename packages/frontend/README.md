@@ -20,6 +20,30 @@ await view.lookup("example");
 Importing the package registers `<goldendict-view>` automatically. Call
 `defineGoldendictView("my-dictionary-view")` when a custom tag name is useful.
 
+The component is responsive by default. It fills the width of its containing
+layout, uses container-aware host chrome, and remeasures article height whenever
+its iframe reflows. A separate browser override layer constrains legacy
+fixed-width dictionary media, makes wide tables and preformatted text locally
+scrollable, unwraps common floated wiki panels on narrow screens, and keeps
+article headers usable with coarse pointers. The pinned GoldenDict-ng CSS stays
+unchanged so upstream updates remain straightforward.
+
+```css
+.dictionary-column {
+  min-width: 0;
+}
+
+goldendict-view {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+}
+```
+
+Consumer `theme.cssText` is emitted after the responsive layer and can override
+it when a particular dictionary requires different behavior. Set
+`--gd-responsive-gutter` there to customize the article's fluid inner spacing.
+
 The public API includes:
 
 - `DictionaryClient` for dictionary listing and lookup, plus the backend's
@@ -34,6 +58,11 @@ Dictionary scripts are removed by default (`scriptPolicy = "none"`). The
 explicit `"sandboxed"` policy retains them inside the iframe, which never gets
 `allow-same-origin`. Lookup, media, and external-link events are cancelable so a
 host application can replace the default navigation behavior.
+
+The bundled demo deliberately selects `"sandboxed"` for locally mounted
+dictionaries so script-dependent formats such as OALDPE render with their full
+GoldenDict typography and interactions. This demo choice does not change the
+component's safer `"none"` default for consumers.
 
 In sandboxed mode, external sidecars such as `bres://.../Dictionary-UI.js` are
 routed through the article's `resourceBaseUrl` without changing filename case.

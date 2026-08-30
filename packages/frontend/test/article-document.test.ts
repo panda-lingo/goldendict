@@ -24,7 +24,10 @@ describe("buildArticleDocument", () => {
       apiBaseUrl: "/api/v1",
       instanceId: "test-instance",
       scriptPolicy: "none",
-      theme: { preset: "modern" },
+      theme: {
+        preset: "modern",
+        cssText: "/* consumer-responsive-override */",
+      },
     });
 
     expect(html).toContain('class="gdarticle"');
@@ -32,10 +35,36 @@ describe("buildArticleDocument", () => {
     expect(html).toContain('class="gdarticlebody gdlangfrom-en"');
     expect(html).toContain('data-gd-action="lookup"');
     expect(html).toContain("Content-Security-Policy");
+    expect(html).toContain('data-gd-style="responsive"');
+    expect(html).toContain("@media (max-width: 40rem)");
+    expect(html).toContain("resizeObserver.observe(document.body)");
+    expect(html).toContain("if(height===lastHeight)return");
+    expect(html).toContain('addEventListener("resize",requestSize');
+    expect(html.indexOf('data-gd-style="responsive"')).toBeLessThan(
+      html.indexOf("consumer-responsive-override"),
+    );
     expect(html).toMatch(
       /class="gddicticon"><img src="(?:data:image\/png;base64,|\/src\/assets\/icons\/document\.png)/,
     );
     expect(html).not.toContain("/dictionaries/fixture/icon");
     expect(html).not.toMatch(/(?:qrc|bres|gico|gdau|gdvideo|gdlookup|bword):/);
+  });
+
+  it("propagates the resolved host theme to theme-aware dictionary sidecars", () => {
+    const html = buildArticleDocument(response, {
+      apiBaseUrl: "/api/v1",
+      instanceId: "dark-theme-instance",
+      scriptPolicy: "sandboxed",
+      theme: { mode: "dark" },
+    });
+
+    expect(html).toContain(
+      '<html data-gd-theme="dark" data-darkreader-scheme="dark">',
+    );
+    expect(html).toContain('"themeMode":"dark"');
+    expect(html).toContain('document.querySelectorAll(".oaldpe")');
+    expect(html).toContain(
+      'attributeFilter:["data-theme","data-darkreader-scheme"]',
+    );
   });
 });
