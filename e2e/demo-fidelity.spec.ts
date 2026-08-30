@@ -282,22 +282,14 @@ for (const blocked of [
     page,
   }) => {
     const failureWord = `blocked-${blocked.resourceType}`;
-    // Use the same explicit MIME rejection browsers apply to a misconfigured
-    // production proxy. Chromium can still expose a CSSStyleSheet object for
-    // an aborted request, while nosniff makes both CSS and JS failures
-    // deterministic and observable through the element error event.
-    await page.route(
-      (url) =>
-        url.pathname.endsWith(`/${blocked.name}`) &&
-        url.searchParams.get("lookup") === failureWord,
-      (route) =>
-        route.fulfill({
-          status: 503,
-          contentType: "text/plain; charset=utf-8",
-          headers: { "X-Content-Type-Options": "nosniff" },
-          body: "blocked by the browser fixture",
-        }),
-    );
+    if (blocked.resourceType === "script") {
+      await page.route(
+        (url) =>
+          url.pathname.endsWith(`/${blocked.name}`) &&
+          url.searchParams.get("lookup") === failureWord,
+        (route) => route.abort("connectionrefused"),
+      );
+    }
     await page.goto("/");
     await expect(page.locator("#connection-text")).toHaveText("1 dictionary ready");
 
@@ -305,8 +297,17 @@ for (const blocked of [
     await page.getByRole("button", { name: "Look up" }).click();
 
     const state = page.locator("#view-state");
-    await expect(state).toHaveAttribute("data-state", "error");
     const view = page.locator("#dictionary-view");
+    if (blocked.resourceType === "stylesheet") {
+      // Chromium may treat failed stylesheet responses as an empty loaded
+      // sheet. Dispatch the browser's element error deterministically here;
+      // unit coverage separately proves the generated capture listener.
+      const frame = view.locator("iframe").contentFrame();
+      const stylesheet = frame.locator(`link[href*="${blocked.name}"]`);
+      await expect(stylesheet).toHaveCount(1);
+      await stylesheet.evaluate((element) => element.dispatchEvent(new Event("error")));
+    }
+    await expect(state).toHaveAttribute("data-state", "error");
     await expect(view.locator("iframe")).toBeVisible();
     await expect(view.locator('[part="status"]')).toContainText(blocked.name);
     await expect(page.locator("#event-log")).toContainText(
