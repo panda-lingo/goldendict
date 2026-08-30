@@ -67,6 +67,32 @@ describe("buildArticleDocument", () => {
     );
   });
 
+  it("installs the GoldenDict runtime identity before dictionary sidecars", () => {
+    const sidecarMarker = "globalThis.__observedDictionaryHost=globalThis.__DICT__";
+    const html = buildArticleDocument(
+      {
+        ...response,
+        articles: [
+          {
+            ...response.articles[0]!,
+            html: `<script>${sidecarMarker}</script><p>article</p>`,
+          },
+        ],
+      },
+      {
+        apiBaseUrl: "/api/v1",
+        instanceId: "runtime-identity-instance",
+        scriptPolicy: "sandboxed",
+      },
+    );
+
+    expect(html).toContain('data-gd-runtime="compatibility"');
+    expect(html).toContain('globalThis.__DICT__={name:"GoldenDict",version:"web"}');
+    expect(html.indexOf("globalThis.__DICT__=")).toBeLessThan(
+      html.indexOf(sidecarMarker),
+    );
+  });
+
   it("offers a GoldenDict fidelity layout without browser override CSS", () => {
     const html = buildArticleDocument(response, {
       apiBaseUrl: "/api/v1",

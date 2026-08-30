@@ -1,6 +1,6 @@
 FROM node:24-alpine AS build
 
-ARG GOLDENDICT_FRONTEND_VERSION=0.1.2
+ARG GOLDENDICT_FRONTEND_VERSION=0.1.3
 WORKDIR /demo
 
 # Install the released browser package from npm. No source from

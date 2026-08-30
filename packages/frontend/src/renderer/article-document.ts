@@ -290,6 +290,13 @@ function contentSecurityPolicy(
   ].join("; ");
 }
 
+function compatibilityBootstrapScript(): string {
+  // GoldenDict-ng injects this object at DocumentCreation in ArticleWebView.
+  // Keep it ahead of dictionary markup so sidecars observe the same host name
+  // while retaining the browser package's opaque-origin sandbox boundary.
+  return `globalThis.__DICT__={name:"GoldenDict",version:"web"};`;
+}
+
 export function buildArticleDocument(
   response: LookupResponse,
   options: ArticleDocumentOptions,
@@ -315,6 +322,7 @@ export function buildArticleDocument(
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="${escapeHtml(contentSecurityPolicy(options.scriptPolicy, nonce))}">
   <title>${escapeHtml(title)}</title>
+  <script nonce="${nonce}" data-gd-runtime="compatibility">${compatibilityBootstrapScript()}</script>
   <style>${escapeStyleText(GOLDENDICT_BASE_CSS)}</style>
   <style>${escapeStyleText(getGoldenDictPresetCss(theme.preset))}</style>
   ${layoutMode === "responsive" ? `<style data-gd-style="responsive">${escapeStyleText(GOLDENDICT_RESPONSIVE_CSS)}</style>` : ""}

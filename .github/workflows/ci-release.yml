@@ -24,7 +24,7 @@ jobs:
   frontend:
     name: Frontend package and demo
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     outputs:
       release_version: ${{ steps.release.outputs.version }}
       package_name: ${{ steps.release.outputs.package_name }}
@@ -64,6 +64,21 @@ jobs:
 
       - name: Verify publishable tarball
         run: npm pack --dry-run --workspace @panda-lingo/goldendict
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps --no-shell chromium
+
+      - name: Run browser end-to-end tests
+        run: npx playwright test
+
+      - name: Upload Playwright failure report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: e2e/.artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
 
   backend:
     name: Python API tests

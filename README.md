@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.2`; for example:
+container and npm package version and defaults to `0.1.3`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.2 \
+GOLDENDICT_RELEASE=0.1.3 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -272,16 +272,44 @@ contract to become ready without startup errors:
 make test-native-worker
 ```
 
+The browser fidelity gate builds the package and demo, starts a deterministic
+HTTP dictionary fixture, and exercises it in real Chromium. It verifies the
+GoldenDict-compatible runtime, authored layout geometry, cacheable sidecar
+CSS/JavaScript, a second lookup in a fresh iframe, and stable CSS-pixel geometry
+at both 1x and 1.5x device scale:
+
+```bash
+npx playwright install --with-deps --no-shell chromium
+npm run test:e2e
+```
+
+The repository also includes an explicit real-dictionary gate. It is never
+silently skipped: point it at a running demo backed by an OALDPE fixture, and
+optionally override the API URL when the demo cannot use its normal proxy:
+
+```bash
+GOLDENDICT_E2E_URL=http://localhost:5173 \
+GOLDENDICT_E2E_API_URL=http://localhost:8080/api/v1 \
+  npm run test:e2e:real
+```
+
+GoldenDict fidelity is measured in CSS pixels. Operating-system display scale,
+browser device-pixel ratio, and GoldenDict's own zoom determine the physical
+pixel size of a screenshot; compare captures at the same viewport and device
+scale rather than hard-coding a dictionary zoom into the renderer.
+
 ## CI and releases
 
 The [GitHub Actions workflow](.github/workflows/ci-release.yml) runs on pull
 requests, pushes to `main`, and manual dispatches. It type-checks, tests, and
-builds the frontend package and demo; runs the Dockerized Python API suite; and
-builds and smoke-tests the combined native image on native `linux/amd64` and
+builds the frontend package and demo; runs the deterministic Chromium fidelity
+and consecutive-lookup gate; runs the Dockerized Python API suite; and builds
+and smoke-tests the combined native image on native `linux/amd64` and
 `linux/arm64` GitHub runners. The GoldenDict-ng repository and commit must agree
 across the native lock, backend compatibility map, and frontend asset manifest,
 and the checked-in browser assets are compared with that exact upstream
-checkout.
+checkout. The copyrighted real-dictionary fixture remains an explicit local
+gate rather than a CI dependency.
 
 Publishing starts only when a GitHub Release is published. Before creating it,
 set the same SemVer in `package.json`, `packages/frontend/package.json`,

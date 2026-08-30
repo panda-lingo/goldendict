@@ -1,7 +1,7 @@
 {
   "name": "goldendict-workspace",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "workspaces": [
     "packages/*",
     "demo"
@@ -10,7 +10,13 @@
     "build": "npm run build --workspace @panda-lingo/goldendict && npm run build --workspace @panda-lingo/goldendict-demo",
     "dev": "npm run build --workspace @panda-lingo/goldendict && npm run dev --workspace @panda-lingo/goldendict-demo",
     "test": "npm run test --workspace @panda-lingo/goldendict",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:real": "playwright test --config e2e/playwright.real.config.ts",
+    "test:e2e:update": "npm run build && playwright test --update-snapshots",
     "typecheck": "npm run typecheck --workspace @panda-lingo/goldendict && npm run typecheck --workspace @panda-lingo/goldendict-demo"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
   },
   "engines": {
     "node": ">=20"
