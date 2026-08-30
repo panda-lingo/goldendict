@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.6`; for example:
+container and npm package version and defaults to `0.1.7`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.6 \
+GOLDENDICT_RELEASE=0.1.7 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
