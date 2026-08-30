@@ -83,7 +83,7 @@ function routeThroughConfiguredApi(raw: string, apiBaseUrl: string): string {
     .replace(/\/+$/, "");
   if (
     (raw === API_ROUTE_PREFIX || raw.startsWith(`${API_ROUTE_PREFIX}/`)) &&
-    /(?:^|\/)api\/v1$/i.test(normalizedApiBase)
+    normalizedApiBase !== ""
   ) {
     return `${normalizedApiBase}${raw.slice(API_ROUTE_PREFIX.length)}`;
   }

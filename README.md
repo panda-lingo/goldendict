@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.5`; for example:
+container and npm package version and defaults to `0.1.6`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.5 \
+GOLDENDICT_RELEASE=0.1.6 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -207,6 +207,11 @@ view.theme = {
 };
 await view.lookup("example");
 ```
+
+The configured `baseUrl` is also the resource-routing boundary. A reverse
+proxy may therefore mount the unmodified API at `/api/v1/mdict`; backend-rooted
+`/api/v1/...` article assets are resolved through that configured mount rather
+than escaping to the origin root.
 
 The component emits cancelable lookup/media/external-link events and state,
 active-article, and collapse events. Dictionary content is rendered in a

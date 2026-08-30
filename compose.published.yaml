@@ -2,7 +2,7 @@ name: goldendict-published-demo
 
 services:
   api:
-    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.5}
+    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.6}
     pull_policy: always
     environment:
       GOLDENDICT_DICTIONARY_ROOTS: /dictionaries
@@ -31,7 +31,7 @@ services:
       context: .
       dockerfile: demo/Dockerfile.published
       args:
-        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.5}
+        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.6}
     depends_on:
       api:
         condition: service_healthy

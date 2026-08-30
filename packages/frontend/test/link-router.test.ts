@@ -55,6 +55,26 @@ describe("article link and resource routing", () => {
     ).toBe(
       "https://example.test/goldendict/api/v1/dictionaries/dict%20id/resources/Dictionary.js",
     );
+
+    const speakProxyContext = {
+      ...context,
+      apiBaseUrl: "/api/v1/mdict",
+      resourceBaseUrl: "/api/v1/dictionaries/dict%20id/resources",
+    };
+    expect(
+      resolveResourceUrl("bres://dict%20id/audio/word.mp3", speakProxyContext),
+    ).toBe("/api/v1/mdict/dictionaries/dict%20id/resources/audio/word.mp3");
+    expect(
+      resolveResourceUrl(
+        "/api/v1/dictionaries/dict%20id/resources/Dictionary-UI.js",
+        {
+          ...speakProxyContext,
+          apiBaseUrl: "https://app.example.test/api/v1/mdict",
+        },
+      ),
+    ).toBe(
+      "https://app.example.test/api/v1/mdict/dictionaries/dict%20id/resources/Dictionary-UI.js",
+    );
   });
 
   it("extracts lookup words, anchors, and dictionary filters", () => {

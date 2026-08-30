@@ -17,6 +17,15 @@ view.client = new DictionaryClient({ baseUrl: "/api/v1" });
 await view.lookup("example");
 ```
 
+`baseUrl` is the complete public API mount, including a reverse-proxy prefix
+when one exists. GoldenDict-rooted article resources are rebased through that
+mount, so a host can expose the service at a route such as `/api/v1/mdict`
+without rewriting lookup payloads:
+
+```ts
+view.client = new DictionaryClient({ baseUrl: "/api/v1/mdict" });
+```
+
 Search-first hosts can request bounded prefix suggestions through the same
 client and API base before committing an article lookup:
 
