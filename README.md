@@ -36,6 +36,34 @@ and current limitations.
 
 ## Run the API and demo
 
+### Use the published release
+
+`compose.published.yaml` pulls the released multi-architecture API image from
+GHCR and builds the demo as an independent consumer of the released npm
+package. It does not compile GoldenDict-ng or copy `packages/frontend` into the
+demo image.
+
+```bash
+GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
+  docker compose -f compose.published.yaml up --build --pull always
+```
+
+Open <http://localhost:5173>. The API is also available at
+<http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
+container and npm package version and defaults to `0.1.0`; for example:
+
+```bash
+GOLDENDICT_RELEASE=0.1.0 \
+GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
+  docker compose -f compose.published.yaml up --build
+```
+
+Use `GOLDENDICT_DEMO_PORT` or `GOLDENDICT_API_PORT` to change the host ports.
+The dictionary directory remains a read-only bind mount, and native indexes are
+kept in the Compose-managed `published-native-indices` volume.
+
+### Build from source
+
 The quickest path uses Docker Compose. Point it at a directory that already
 contains dictionaries and, when it is not in the default repository-adjacent
 location, a GoldenDict-ng checkout at the commit pinned by this project.

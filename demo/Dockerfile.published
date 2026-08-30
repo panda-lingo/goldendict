@@ -1,0 +1,23 @@
+FROM node:24-alpine AS build
+
+ARG GOLDENDICT_FRONTEND_VERSION=0.1.0
+WORKDIR /demo
+
+# Install the released browser package from npm. No source from
+# packages/frontend is copied into this consumer build.
+COPY demo/package.json ./package.json
+RUN npm pkg set "dependencies.@panda-lingo/goldendict=${GOLDENDICT_FRONTEND_VERSION}" \
+  && npm install --ignore-scripts --no-package-lock \
+  && test "$(node -p "require('./node_modules/@panda-lingo/goldendict/package.json').version")" = "${GOLDENDICT_FRONTEND_VERSION}"
+
+COPY demo/index.html demo/tsconfig.json demo/tsconfig.published.json demo/vite.config.ts ./
+COPY demo/src ./src
+RUN ./node_modules/.bin/tsc --noEmit --project tsconfig.published.json \
+  && ./node_modules/.bin/vite build
+
+FROM caddy:2-alpine
+COPY demo/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /demo/dist /srv
+EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --start-period=3s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
