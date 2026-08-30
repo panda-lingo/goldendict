@@ -63,7 +63,7 @@ jobs:
         run: npm run build
 
       - name: Verify publishable tarball
-        run: npm pack --dry-run --workspace @goldendict-web/frontend
+        run: npm pack --dry-run --workspace @panda-lingo/goldendict
 
   backend:
     name: Python API tests
@@ -380,7 +380,7 @@ jobs:
         run: npm ci
 
       - name: Build frontend package
-        run: npm run build --workspace @goldendict-web/frontend
+        run: npm run build --workspace @panda-lingo/goldendict
 
       - name: Check whether version is already published
         id: npm-version
@@ -401,7 +401,7 @@ jobs:
           NPM_DIST_TAG: ${{ needs.frontend.outputs.npm_dist_tag }}
         run: >-
           npm publish
-          --workspace @goldendict-web/frontend
+          --workspace @panda-lingo/goldendict
           --access public
           --provenance
           --tag "${NPM_DIST_TAG}"

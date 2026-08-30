@@ -10,7 +10,7 @@ Vendored upstream files have an explicit boundary:
 To adopt a newer or modified local GoldenDict-ng checkout:
 
 ```sh
-npm run sync:goldendict --workspace @goldendict-web/frontend -- \
+npm run sync:goldendict --workspace @panda-lingo/goldendict -- \
   --source /path/to/goldendict-ng
 npm test
 npm run build
@@ -28,6 +28,6 @@ CI and local builds run the target-only checksum check automatically. To also
 verify a checkout matches the currently pinned version:
 
 ```sh
-npm run check:goldendict --workspace @goldendict-web/frontend -- \
+npm run check:goldendict --workspace @panda-lingo/goldendict -- \
   --source /path/to/goldendict-ng
 ```

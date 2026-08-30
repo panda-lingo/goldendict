@@ -11,7 +11,7 @@ The repository contains three independently usable pieces:
   headless GoldenDict-ng C++ worker and scans configured local paths at startup.
   There is no file-upload endpoint.
 - `packages/frontend/` — the framework-independent
-  `@goldendict-web/frontend` package and `<goldendict-view>` custom element.
+  `@panda-lingo/goldendict` package and `<goldendict-view>` custom element.
 - `demo/` — a real consumer of the package public API with dictionary,
   display-preset, light/dark, and custom-brand controls.
 
@@ -128,14 +128,14 @@ curl http://localhost:8080/api/v1/lookup/hello
 
 ## Frontend package
 
-Install or depend on `@goldendict-web/frontend`, then configure its API client
+Install or depend on `@panda-lingo/goldendict`, then configure its API client
 and theme. The package does not require React, Vue, or another framework.
 
 ```ts
 import {
   DictionaryClient,
   defineGoldendictView,
-} from "@goldendict-web/frontend";
+} from "@panda-lingo/goldendict";
 
 defineGoldendictView();
 
@@ -186,7 +186,7 @@ Rendering assets and compatibility behavior are pinned to GoldenDict-ng commit
 and checksums. Refresh them from any newer or locally modified checkout with:
 
 ```bash
-npm run sync:goldendict --workspace @goldendict-web/frontend -- \
+npm run sync:goldendict --workspace @panda-lingo/goldendict -- \
   --source /path/to/goldendict-ng
 npm test
 npm run build
@@ -250,7 +250,7 @@ be marked as a GitHub prerelease. The workflow publishes:
   release—`latest` tags. Each architecture is built natively, pushed by digest,
   and smoke-tested before the tags are created. The final manifest is checked
   for both architectures and receives a GitHub build-provenance attestation.
-- `@goldendict-web/frontend` to the public npm registry. Stable releases use
+- `@panda-lingo/goldendict` to the public npm registry. Stable releases use
   the `latest` npm dist-tag and GitHub prereleases use `next`. The private demo
   workspace is built but never published.
 
@@ -261,7 +261,7 @@ public.
 
 For the package's first-ever publication, when it does not yet exist on npm,
 provide a one-time granular npm automation token with access to the
-`@goldendict-web` scope in the `NPM_TOKEN` repository secret. After that first
+`@panda-lingo` scope in the `NPM_TOKEN` organization secret. After that first
 publish, configure the package's npm Trusted Publisher with organization/user
 `panda-lingo`, repository `goldendict`, workflow filename `ci-release.yml`, and
 the `npm publish` action. Then remove `NPM_TOKEN`; the same job uses GitHub OIDC

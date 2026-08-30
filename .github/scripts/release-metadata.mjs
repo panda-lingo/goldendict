@@ -51,6 +51,11 @@ if (rootPackage.private !== true || demoPackage.private !== true) {
 if (frontendPackage.private === true) {
   fail("the frontend package is marked private");
 }
+if (frontendPackage.name !== "@panda-lingo/goldendict") {
+  fail(
+    `frontend package must publish as @panda-lingo/goldendict, got ${String(frontendPackage.name)}`,
+  );
+}
 if (
   frontendPackage.publishConfig?.access !== "public" ||
   frontendPackage.publishConfig?.registry !== "https://registry.npmjs.org"

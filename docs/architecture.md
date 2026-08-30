@@ -7,7 +7,7 @@ preserving GoldenDict-ng's article HTML contract.
 mounted dictionary bundle -> GoldenDict-ng format factories -> JSONL worker
                                                              |
                                                              v
-consumer app <- @goldendict-web/frontend <- stable REST gateway
+consumer app <- @panda-lingo/goldendict <- stable REST gateway
        |                                             |
        +-------- sandboxed article document <--------+
 ```

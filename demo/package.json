@@ -1,5 +1,5 @@
 {
-  "name": "@goldendict-web/demo",
+  "name": "@panda-lingo/goldendict-demo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@goldendict-web/frontend": "*"
+    "@panda-lingo/goldendict": "*"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

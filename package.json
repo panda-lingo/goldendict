@@ -1,5 +1,5 @@
 {
-  "name": "goldendict-web-workspace",
+  "name": "goldendict-workspace",
   "private": true,
   "version": "0.1.0",
   "workspaces": [
@@ -7,10 +7,10 @@
     "demo"
   ],
   "scripts": {
-    "build": "npm run build --workspace @goldendict-web/frontend && npm run build --workspace @goldendict-web/demo",
-    "dev": "npm run build --workspace @goldendict-web/frontend && npm run dev --workspace @goldendict-web/demo",
-    "test": "npm run test --workspace @goldendict-web/frontend",
-    "typecheck": "npm run typecheck --workspace @goldendict-web/frontend && npm run typecheck --workspace @goldendict-web/demo"
+    "build": "npm run build --workspace @panda-lingo/goldendict && npm run build --workspace @panda-lingo/goldendict-demo",
+    "dev": "npm run build --workspace @panda-lingo/goldendict && npm run dev --workspace @panda-lingo/goldendict-demo",
+    "test": "npm run test --workspace @panda-lingo/goldendict",
+    "typecheck": "npm run typecheck --workspace @panda-lingo/goldendict && npm run typecheck --workspace @panda-lingo/goldendict-demo"
   },
   "engines": {
     "node": ">=20"

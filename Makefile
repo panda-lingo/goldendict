@@ -21,7 +21,7 @@ test-native-worker: build-backend-native
 	python3 backend/native/tests/container_smoke.py --image "$(GOLDENDICT_NATIVE_IMAGE)"
 
 check-goldendict:
-	npm run check:goldendict --workspace @goldendict-web/frontend
+	npm run check:goldendict --workspace @panda-lingo/goldendict
 
 test: test-frontend test-backend
 

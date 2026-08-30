@@ -10,7 +10,7 @@ import {
   type GoldenDictView,
   type ThemeMode,
   type ViewStateEventDetail,
-} from "@goldendict-web/frontend";
+} from "@panda-lingo/goldendict";
 import "./demo.css";
 
 function element<T extends HTMLElement>(id: string): T {

@@ -1,4 +1,4 @@
-# @goldendict-web/frontend
+# @panda-lingo/goldendict
 
 Framework-independent client and `<goldendict-view>` renderer for the
 GoldenDict REST service. The package preserves GoldenDict-ng article markup and
@@ -9,7 +9,7 @@ theme tokens.
 import {
   DictionaryClient,
   defineGoldendictView,
-} from "@goldendict-web/frontend";
+} from "@panda-lingo/goldendict";
 
 defineGoldendictView();
 const view = document.querySelector("goldendict-view");
