@@ -281,22 +281,27 @@ for (const blocked of [
   test(`reports a blocked dictionary ${blocked.resourceType} instead of ready`, async ({
     page,
   }) => {
+    const failureWord = `blocked-${blocked.resourceType}`;
     // Use the same explicit MIME rejection browsers apply to a misconfigured
     // production proxy. Chromium can still expose a CSSStyleSheet object for
     // an aborted request, while nosniff makes both CSS and JS failures
     // deterministic and observable through the element error event.
-    await page.route(`**/${blocked.name}`, (route) =>
-      route.fulfill({
-        status: 503,
-        contentType: "text/plain; charset=utf-8",
-        headers: { "X-Content-Type-Options": "nosniff" },
-        body: "blocked by the browser fixture",
-      }),
+    await page.route(
+      (url) =>
+        url.pathname.endsWith(`/${blocked.name}`) &&
+        url.searchParams.get("lookup") === failureWord,
+      (route) =>
+        route.fulfill({
+          status: 503,
+          contentType: "text/plain; charset=utf-8",
+          headers: { "X-Content-Type-Options": "nosniff" },
+          body: "blocked by the browser fixture",
+        }),
     );
     await page.goto("/");
     await expect(page.locator("#connection-text")).toHaveText("1 dictionary ready");
 
-    await page.locator("#query").fill("example");
+    await page.locator("#query").fill(failureWord);
     await page.getByRole("button", { name: "Look up" }).click();
 
     const state = page.locator("#view-state");

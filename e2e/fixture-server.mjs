@@ -179,6 +179,7 @@ const sidecarFixture = String.raw`
 `;
 
 function articleHtml(word) {
+  const resourceVersion = encodeURIComponent(word);
   const description =
     word === "hello"
       ? "used as a greeting when you meet somebody or answer the phone"
@@ -188,9 +189,9 @@ function articleHtml(word) {
       ? "Hello, is there anybody there?"
       : "This is a clear example of the authored dictionary layout.";
   return `<gd-section-html><gd-section-head>
-    <link rel="stylesheet" href="${resourceRoot}/fidelity.css">
-    <script src="${resourceRoot}/fixture-jquery.js"></script>
-    <script src="${resourceRoot}/fixture-sidecar.js"></script>
+    <link rel="stylesheet" href="${resourceRoot}/fidelity.css?lookup=${resourceVersion}">
+    <script src="${resourceRoot}/fixture-jquery.js?lookup=${resourceVersion}"></script>
+    <script src="${resourceRoot}/fixture-sidecar.js?lookup=${resourceVersion}"></script>
   </gd-section-head><gd-section-body>
     <div class="fixture-snapshot oaldpe" data-fixture-word="${word}">
       <nav class="fixture-nav"><span class="active">Entry</span><span>Usage</span><span>All</span></nav>
@@ -311,12 +312,9 @@ const server = createServer(async (request, response) => {
       ]);
       return;
     }
-    if (url.pathname === "/api/v1/lookup/example") {
-      json(response, 200, lookupPayload("example"));
-      return;
-    }
-    if (url.pathname === "/api/v1/lookup/hello") {
-      json(response, 200, lookupPayload("hello"));
+    if (url.pathname.startsWith("/api/v1/lookup/")) {
+      const word = decodeURIComponent(url.pathname.slice("/api/v1/lookup/".length));
+      json(response, 200, lookupPayload(word));
       return;
     }
     if (url.pathname.startsWith(`${resourceRoot}/`)) {
