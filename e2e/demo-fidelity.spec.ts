@@ -101,7 +101,7 @@ async function geometryAtDeviceScaleFactor(deviceScaleFactor: number) {
   }
 }
 
-test("preserves authored fidelity and initializes cached sidecars on consecutive lookups", async ({
+test("preserves authored fidelity and initializes sidecars on consecutive lookups", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -281,16 +281,7 @@ for (const blocked of [
   test(`reports a blocked dictionary ${blocked.resourceType} instead of ready`, async ({
     page,
   }) => {
-    // Chromium can expose a CSSStyleSheet object for an aborted stylesheet and
-    // suppress the element error event. An HTTP failure exercises the browser's
-    // deterministic link/script load-failure path for both resource types.
-    await page.route(`**/${blocked.name}`, (route) =>
-      route.fulfill({
-        status: 503,
-        contentType: "text/plain; charset=utf-8",
-        body: "blocked by the browser fixture",
-      }),
-    );
+    await page.route(`**/${blocked.name}`, (route) => route.abort("failed"));
     await page.goto("/");
     await expect(page.locator("#connection-text")).toHaveText("1 dictionary ready");
 

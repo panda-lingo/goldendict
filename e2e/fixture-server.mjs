@@ -323,15 +323,15 @@ const server = createServer(async (request, response) => {
       const name = url.pathname.slice(resourceRoot.length + 1);
       resourceRequests.set(name, (resourceRequests.get(name) ?? 0) + 1);
       if (name === "fidelity.css") {
-        text(response, "text/css; charset=utf-8", fixtureCss, true);
+        text(response, "text/css; charset=utf-8", fixtureCss);
         return;
       }
       if (name === "fixture-jquery.js") {
-        text(response, "text/javascript; charset=utf-8", jqueryFixture, true);
+        text(response, "text/javascript; charset=utf-8", jqueryFixture);
         return;
       }
       if (name === "fixture-sidecar.js") {
-        text(response, "text/javascript; charset=utf-8", sidecarFixture, true);
+        text(response, "text/javascript; charset=utf-8", sidecarFixture);
         return;
       }
     }
