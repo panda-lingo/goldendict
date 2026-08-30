@@ -147,7 +147,9 @@ which the Compose demo allows explicitly. Never inject `articles[].html` into an
 application's privileged document. Resource paths are URL-decoded once,
 normalized across slash conventions, and reject control characters, URI schemes,
 and dot traversal. Resource responses include an ETag, cache policy, accurate
-MIME type, and `X-Content-Type-Options: nosniff`.
+MIME type, `X-Content-Type-Options: nosniff`, and
+`Cross-Origin-Resource-Policy: cross-origin` for the intentionally opaque
+article sandbox.
 
 ## Verification
 

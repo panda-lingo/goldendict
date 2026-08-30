@@ -22,6 +22,8 @@ const CUSTOM_RESOURCE_SCHEMES = new Set([
   "gdvideo",
 ]);
 
+const API_ROUTE_PREFIX = "/api/v1";
+
 export const GOLDENDICT_SCHEME_SUPPORT = {
   gdlookup: "lookup",
   bword: "lookup",
@@ -75,17 +77,29 @@ function absoluteOrRelativeUrl(raw: string, base: string): string {
   return joinUrl(base, raw);
 }
 
+function routeThroughConfiguredApi(raw: string, apiBaseUrl: string): string {
+  const normalizedApiBase = apiBaseUrl
+    .replace(/[?#].*$/, "")
+    .replace(/\/+$/, "");
+  if (
+    (raw === API_ROUTE_PREFIX || raw.startsWith(`${API_ROUTE_PREFIX}/`)) &&
+    /(?:^|\/)api\/v1$/i.test(normalizedApiBase)
+  ) {
+    return `${normalizedApiBase}${raw.slice(API_ROUTE_PREFIX.length)}`;
+  }
+  if (/^[a-z][a-z\d+.-]*:/i.test(apiBaseUrl)) {
+    return new URL(raw, apiBaseUrl).toString();
+  }
+  return raw;
+}
+
 function contextResourceBase(context: ResourceContext): string | undefined {
   const base = context.resourceBaseUrl;
   if (!base) {
     return undefined;
   }
-  if (
-    base.startsWith("/") &&
-    !base.startsWith("//") &&
-    /^[a-z][a-z\d+.-]*:/i.test(context.apiBaseUrl)
-  ) {
-    return new URL(base, context.apiBaseUrl).toString();
+  if (base.startsWith("/") && !base.startsWith("//")) {
+    return routeThroughConfiguredApi(base, context.apiBaseUrl);
   }
   return base;
 }
@@ -99,10 +113,7 @@ export function resolveResourceUrl(
     return builtin;
   }
   if (rawUrl.startsWith("/") && !rawUrl.startsWith("//")) {
-    if (/^[a-z][a-z\d+.-]*:/i.test(context.apiBaseUrl)) {
-      return new URL(rawUrl, context.apiBaseUrl).toString();
-    }
-    return rawUrl;
+    return routeThroughConfiguredApi(rawUrl, context.apiBaseUrl);
   }
   let url: URL;
   try {

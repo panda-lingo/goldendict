@@ -4,6 +4,10 @@ import {
   GoldenDictView,
   defineGoldendictView,
 } from "../src/element/goldendict-view";
+import {
+  GOLDENDICT_EVENTS,
+  type DictionaryResourceErrorEventDetail,
+} from "../src/types";
 
 describe("GoldenDictView requests", () => {
   it("sizes itself from its container and keeps narrow chrome wrap-safe", () => {
@@ -202,6 +206,77 @@ describe("GoldenDictView requests", () => {
     );
     expect(secondFrame.style.height).toBe("321px");
     expect(view.state).toBe("ready");
+    view.remove();
+  });
+
+  it("latches failed dictionary sidecars as a typed public error", async () => {
+    defineGoldendictView();
+    const view = document.createElement("goldendict-view") as GoldenDictView;
+    view.scriptPolicy = "sandboxed";
+    document.body.append(view);
+    let emitted: DictionaryResourceErrorEventDetail | undefined;
+    view.addEventListener(GOLDENDICT_EVENTS.resourceError, (event) => {
+      emitted = (event as CustomEvent<DictionaryResourceErrorEventDetail>).detail;
+    });
+
+    view.setLookupResponse({
+      word: "unstyled",
+      lookupTimeMs: 1,
+      suggestions: [],
+      articles: [
+        {
+          dictionaryId: "fixture",
+          dictionaryName: "Fixture",
+          format: "mdict",
+          html: '<link rel="stylesheet" href="missing.css"><p>Article</p>',
+        },
+      ],
+    });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const frame = view.shadowRoot?.querySelector("iframe") as HTMLIFrameElement;
+    const bridgeId = /"instanceId":"([^"]+)"/.exec(frame.srcdoc)?.[1] ?? "";
+
+    globalThis.dispatchEvent(
+      new MessageEvent("message", {
+        source: frame.contentWindow,
+        data: {
+          namespace: "goldendict-web",
+          instanceId: bridgeId,
+          type: "resource-error",
+          detail: {
+            resourceType: "stylesheet",
+            url: "https://dictionary.test/missing.css",
+            dictionaryId: "fixture",
+          },
+        },
+      }),
+    );
+
+    expect(emitted).toEqual({
+      resourceType: "stylesheet",
+      url: "https://dictionary.test/missing.css",
+      dictionaryId: "fixture",
+    });
+    expect(view.resourceErrors).toEqual([emitted]);
+    expect(view.state).toBe("error");
+    expect(view.error?.message).toContain("https://dictionary.test/missing.css");
+    expect(view.shadowRoot?.querySelector('[part="status"]')?.textContent).toContain(
+      "https://dictionary.test/missing.css",
+    );
+    expect(frame.hidden).toBe(false);
+
+    globalThis.dispatchEvent(
+      new MessageEvent("message", {
+        source: frame.contentWindow,
+        data: {
+          namespace: "goldendict-web",
+          instanceId: bridgeId,
+          type: "ready",
+          detail: {},
+        },
+      }),
+    );
+    expect(view.state).toBe("error");
     view.remove();
   });
 

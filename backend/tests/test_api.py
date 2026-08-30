@@ -35,16 +35,35 @@ def test_runtime_catalog_mutations_are_explicitly_opt_in(settings):
     assert "/api/v1/dictionaries/{dictionary_id}" in paths
 
 
-def test_explicit_opaque_sandbox_origin_is_allowed_for_dictionary_scripts(settings):
+def test_explicit_opaque_sandbox_origin_is_allowed_for_dictionary_resources(
+    settings, dictionary_root: Path
+):
     app = create_app(
         replace(settings, cors_origins=("http://localhost:5173", "null"))
     )
+    app.state.dictionary_service.catalog.replace_all(
+        [FakeAdapter(dictionary_root / "fixture.mdx")]
+    )
 
     with TestClient(app) as client:
-        response = client.get("/api/v1/health", headers={"Origin": "null"})
+        response = client.get(
+            "/api/v1/dictionaries/fake-dictionary/resources/fake.png",
+            headers={"Origin": "null"},
+        )
+        not_modified = client.get(
+            "/api/v1/dictionaries/fake-dictionary/resources/fake.png",
+            headers={"Origin": "null", "If-None-Match": response.headers["etag"]},
+        )
+        partial = client.get(
+            "/api/v1/dictionaries/fake-dictionary/resources/fake.png",
+            headers={"Origin": "null", "Range": "bytes=0-3"},
+        )
 
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "null"
+    assert not_modified.status_code == 304
+    assert partial.status_code == 206
+    for item in (response, not_modified, partial):
+        assert item.headers["access-control-allow-origin"] == "null"
 
 
 def test_lookup_path_accepts_an_encoded_slash(settings):
@@ -76,11 +95,14 @@ def test_resource_has_mime_etag_cache_and_conditional_response(settings, diction
     assert first.headers["content-type"] == "image/png"
     assert first.headers["cache-control"].startswith("public")
     assert "must-revalidate" in first.headers["cache-control"]
+    assert first.headers["cross-origin-resource-policy"] == "cross-origin"
     assert first.headers["x-content-type-options"] == "nosniff"
     assert second.status_code == 304
     assert second.content == b""
+    assert second.headers["cross-origin-resource-policy"] == "cross-origin"
     assert partial.status_code == 206
     assert partial.content == b"fake"
+    assert partial.headers["cross-origin-resource-policy"] == "cross-origin"
     assert partial.headers["content-range"] == "bytes 0-3/8"
     assert partial.headers["accept-ranges"] == "bytes"
 

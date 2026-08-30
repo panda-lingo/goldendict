@@ -4,6 +4,7 @@ import type {
   ActiveArticleEventDetail,
   ArticleLayoutMode,
   ArticleToggleEventDetail,
+  DictionaryResourceErrorEventDetail,
   DictionaryClientOptions,
   ExternalLinkEventDetail,
   GoldenDictTheme,
@@ -24,7 +25,7 @@ const SHADOW_STYLES = `
   .brand img{display:block;flex:0 0 auto;width:1.75rem;height:1.75rem;object-fit:contain}
   .brand img[hidden]{display:none}
   .brand span{min-width:0;overflow-wrap:anywhere}
-  .status{display:grid;place-items:center;min-height:8rem;padding:1.25rem;text-align:center;color:var(--gd-host-muted,#59636e)}
+  .status{display:grid;place-items:center;min-height:8rem;padding:1.25rem;overflow-wrap:anywhere;text-align:center;color:var(--gd-host-muted,#59636e)}
   .status[hidden]{display:none}
   .status[data-state="error"]{color:var(--gd-host-error,#a21d2d)}
   .spinner{width:1.25rem;height:1.25rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .7rem}
@@ -77,6 +78,8 @@ export class GoldenDictView extends HTMLElement {
   private responseValue?: LookupResponse;
   private themeValue: GoldenDictTheme = {};
   private stateValue: ViewState = "idle";
+  private errorValue?: Error;
+  private resourceErrorsValue: DictionaryResourceErrorEventDetail[] = [];
   private dictionaryIdsValue: string[] = [];
   private pendingAnchor?: string;
 
@@ -209,6 +212,16 @@ export class GoldenDictView extends HTMLElement {
     return this.responseValue;
   }
 
+  /** The current request or article-resource error, if `state` is `"error"`. */
+  get error(): Error | undefined {
+    return this.errorValue;
+  }
+
+  /** Dictionary-authored stylesheets or scripts that failed in this render. */
+  get resourceErrors(): readonly DictionaryResourceErrorEventDetail[] {
+    return this.resourceErrorsValue.map((failure) => ({ ...failure }));
+  }
+
   configureClient(options: DictionaryClientOptions): void {
     this.clientValue = new DictionaryClient(options);
   }
@@ -278,6 +291,8 @@ export class GoldenDictView extends HTMLElement {
 
   private renderResponse(response: LookupResponse): void {
     const renderSequence = ++this.renderSequence;
+    this.resourceErrorsValue = [];
+    this.errorValue = undefined;
     const bridgeInstanceId = `${this.instanceId}-${renderSequence}`;
     this.activeBridgeInstanceId = bridgeInstanceId;
     const frame = this.replaceFrame(false);
@@ -302,6 +317,7 @@ export class GoldenDictView extends HTMLElement {
 
   private resetFrame(): void {
     this.activeBridgeInstanceId = undefined;
+    this.resourceErrorsValue = [];
     this.replaceFrame(true);
   }
 
@@ -331,10 +347,17 @@ export class GoldenDictView extends HTMLElement {
     if (!this.responseValue) {
       return;
     }
-    this.setState(
-      this.responseValue.articles.length ? "ready" : "not-found",
-      { word: this.responseValue.word },
-    );
+    if (this.resourceErrorsValue.length) {
+      this.setState("error", {
+        word: this.responseValue.word,
+        error: this.errorValue ?? this.resourceError(this.resourceErrorsValue[0]!),
+      });
+    } else {
+      this.setState(
+        this.responseValue.articles.length ? "ready" : "not-found",
+        { word: this.responseValue.word },
+      );
+    }
     if (this.pendingAnchor) {
       this.postCommand({ type: "scroll-anchor", anchor: this.pendingAnchor });
       this.pendingAnchor = undefined;
@@ -389,8 +412,53 @@ export class GoldenDictView extends HTMLElement {
       case "external-link":
         this.handleExternalLink(String(detail.url ?? ""));
         break;
+      case "resource-error":
+        this.handleResourceErrorMessage(detail);
+        break;
     }
   };
+
+  private handleResourceErrorMessage(detail: Record<string, unknown>): void {
+    const resourceType =
+      detail.resourceType === "stylesheet" || detail.resourceType === "script"
+        ? detail.resourceType
+        : undefined;
+    const url = String(detail.url ?? "").trim();
+    if (!resourceType || !url) {
+      return;
+    }
+    const failure: DictionaryResourceErrorEventDetail = {
+      resourceType,
+      url,
+      ...(detail.dictionaryId
+        ? { dictionaryId: String(detail.dictionaryId) }
+        : {}),
+    };
+    if (
+      this.resourceErrorsValue.some(
+        (item) =>
+          item.resourceType === failure.resourceType &&
+          item.url === failure.url &&
+          item.dictionaryId === failure.dictionaryId,
+      )
+    ) {
+      return;
+    }
+    this.resourceErrorsValue.push(failure);
+    this.emit<DictionaryResourceErrorEventDetail>(
+      GOLDENDICT_EVENTS.resourceError,
+      { ...failure },
+    );
+    this.setState("error", {
+      word: this.responseValue?.word,
+      error: this.resourceError(failure),
+    });
+  }
+
+  private resourceError(failure: DictionaryResourceErrorEventDetail): Error {
+    const label = failure.resourceType === "stylesheet" ? "stylesheet" : "script";
+    return new Error(`Dictionary ${label} failed to load: ${failure.url}`);
+  }
 
   private handleLookupMessage(detail: Record<string, unknown>): void {
     const word = String(detail.word ?? "").trim();
@@ -478,6 +546,10 @@ export class GoldenDictView extends HTMLElement {
   ): void {
     const changed = state !== this.stateValue;
     this.stateValue = state;
+    this.errorValue =
+      state === "error"
+        ? context.error ?? new Error("The dictionary request failed.")
+        : undefined;
     this.statusElement.dataset.state = state;
     this.statusElement.hidden = state === "ready" || state === "not-found";
     if (state === "loading") {
@@ -489,7 +561,7 @@ export class GoldenDictView extends HTMLElement {
       }
     } else if (state === "error") {
       this.statusElement.textContent =
-        context.error?.message ?? "The dictionary request failed.";
+        this.errorValue?.message ?? "The dictionary request failed.";
     } else if (state === "idle") {
       this.statusElement.textContent = "Enter a word to search the loaded dictionaries.";
     } else {
@@ -500,7 +572,7 @@ export class GoldenDictView extends HTMLElement {
       this.emit<ViewStateEventDetail>(GOLDENDICT_EVENTS.stateChange, {
         state,
         ...(context.word ? { word: context.word } : {}),
-        ...(context.error ? { error: context.error } : {}),
+        ...(this.errorValue ? { error: this.errorValue } : {}),
       });
     }
   }

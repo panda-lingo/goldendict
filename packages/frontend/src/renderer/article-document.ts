@@ -121,6 +121,32 @@ function bridgeScript(
       type,
       detail
     },"*");
+    const reportResourceError=(failure)=>{
+      if(!failure||typeof failure.url!=="string"||!failure.url)return;
+      if(failure.resourceType!=="stylesheet"&&failure.resourceType!=="script")return;
+      post("resource-error",{
+        resourceType:failure.resourceType,
+        url:failure.url,
+        dictionaryId:typeof failure.dictionaryId==="string"&&failure.dictionaryId
+          ?failure.dictionaryId
+          :undefined
+      });
+    };
+    globalThis.__GOLDENDICT_WEB_REPORT_RESOURCE_ERROR__=reportResourceError;
+    const pendingResourceErrors=globalThis.__GOLDENDICT_WEB_RESOURCE_ERRORS__;
+    if(Array.isArray(pendingResourceErrors)){
+      pendingResourceErrors.splice(0).forEach(reportResourceError);
+    }
+    const verifyStylesheets=()=>{
+      document.querySelectorAll('link[rel~="stylesheet"][href]').forEach((link)=>{
+        if(!(link instanceof HTMLLinkElement)||link.disabled||link.sheet!==null)return;
+        reportResourceError({
+          resourceType:"stylesheet",
+          url:link.href,
+          dictionaryId:link.closest(".gdarticle")?.getAttribute("data-gd-id")||undefined
+        });
+      });
+    };
     const articleOf=(target)=>target instanceof Element?target.closest(".gdarticle"):null;
     const articleId=(article)=>article?.getAttribute("data-gd-id")||"";
     const syncDictionaryTheme=()=>{
@@ -262,7 +288,7 @@ function bridgeScript(
     const resizeObserver=new ResizeObserver(requestSize);
     resizeObserver.observe(document.body);
     addEventListener("resize",requestSize,{passive:true});
-    addEventListener("load",()=>{requestSize();post("ready",{});});
+    addEventListener("load",()=>{verifyStylesheets();requestSize();post("ready",{});});
   })();`;
 }
 
@@ -293,8 +319,37 @@ function contentSecurityPolicy(
 function compatibilityBootstrapScript(): string {
   // GoldenDict-ng injects this object at DocumentCreation in ArticleWebView.
   // Keep it ahead of dictionary markup so sidecars observe the same host name
-  // while retaining the browser package's opaque-origin sandbox boundary.
-  return `globalThis.__DICT__={name:"GoldenDict",version:"web"};`;
+  // while retaining the browser package's opaque-origin sandbox boundary. The
+  // capture listener must also precede dictionary markup: resource error events
+  // do not bubble and a failed sidecar can otherwise leave an unstyled article
+  // looking like a successful render.
+  return `(function(){
+    globalThis.__DICT__={name:"GoldenDict",version:"web"};
+    const pending=[];
+    globalThis.__GOLDENDICT_WEB_RESOURCE_ERRORS__=pending;
+    addEventListener("error",(event)=>{
+      const target=event.target;
+      let resourceType="";
+      let url="";
+      if(target instanceof HTMLLinkElement&&target.relList.contains("stylesheet")){
+        resourceType="stylesheet";
+        url=target.href;
+      }else if(target instanceof HTMLScriptElement&&target.src){
+        resourceType="script";
+        url=target.src;
+      }
+      if(!resourceType||!url)return;
+      const article=target.closest(".gdarticle");
+      const failure={
+        resourceType,
+        url,
+        dictionaryId:article?.getAttribute("data-gd-id")||undefined
+      };
+      const report=globalThis.__GOLDENDICT_WEB_REPORT_RESOURCE_ERROR__;
+      if(typeof report==="function")report(failure);
+      else pending.push(failure);
+    },true);
+  })();`;
 }
 
 export function buildArticleDocument(

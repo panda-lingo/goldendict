@@ -37,6 +37,26 @@ describe("article link and resource routing", () => {
     ).toBe("https://dictionary.example/api/v1/resources/already-routed.png");
   });
 
+  it("keeps backend resource routes under a configured deployment prefix", () => {
+    const prefixedContext = {
+      ...context,
+      apiBaseUrl: "/goldendict/api/v1",
+    };
+    expect(
+      resolveResourceUrl("bres://dict%20id/styles/Dictionary.css", prefixedContext),
+    ).toBe(
+      "/goldendict/api/v1/dictionaries/dict%20id/resources/styles/Dictionary.css",
+    );
+    expect(
+      resolveResourceUrl("/api/v1/dictionaries/dict%20id/resources/Dictionary.js", {
+        ...prefixedContext,
+        apiBaseUrl: "https://example.test/goldendict/api/v1",
+      }),
+    ).toBe(
+      "https://example.test/goldendict/api/v1/dictionaries/dict%20id/resources/Dictionary.js",
+    );
+  });
+
   it("extracts lookup words, anchors, and dictionary filters", () => {
     expect(
       classifyArticleLink(

@@ -14,6 +14,15 @@ import {
 } from "@panda-lingo/goldendict";
 import "./demo.css";
 
+// Use the event's stable wire name so the published-package consumer remains
+// buildable while a release containing the typed constant is being prepared.
+const RESOURCE_ERROR_EVENT = "goldendict-resource-error";
+interface DictionaryResourceErrorDetail {
+  resourceType: "stylesheet" | "script";
+  url: string;
+  dictionaryId?: string;
+}
+
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
   if (!found) {
@@ -264,8 +273,16 @@ dictionaryView.addEventListener(GOLDENDICT_EVENTS.stateChange, (event) => {
     lookupTime.textContent = dictionaryView.response
       ? `${dictionaryView.response.articles.length} result(s) · ${dictionaryView.response.lookupTimeMs.toFixed(1)} ms`
       : "";
+  } else if (detail.state !== "loading") {
+    lookupTime.textContent = "";
   }
   logEvent(GOLDENDICT_EVENTS.stateChange, detail);
+});
+dictionaryView.addEventListener(RESOURCE_ERROR_EVENT, (event) => {
+  const detail = (event as CustomEvent<DictionaryResourceErrorDetail>).detail;
+  const label = detail.resourceType === "stylesheet" ? "stylesheet" : "script";
+  showToast(`Dictionary ${label} failed to load: ${detail.url}`);
+  logEvent(RESOURCE_ERROR_EVENT, detail);
 });
 for (const eventName of [
   GOLDENDICT_EVENTS.activeArticleChange,

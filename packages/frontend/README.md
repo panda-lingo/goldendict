@@ -69,7 +69,7 @@ The public API includes:
 - `GoldenDictView` and `defineGoldendictView` for framework-independent use.
 - `GoldenDictTheme`, light/dark token presets, and `themeToCss` for branding.
 - `GOLDENDICT_EVENTS` for lookup, active article, collapse, media, external-link,
-  and state notifications.
+  dictionary-resource failure, and state notifications.
 - Resource/link helpers for hosts that need to inspect GoldenDict URLs.
 
 Dictionary scripts are removed by default (`scriptPolicy = "none"`). The
@@ -89,6 +89,22 @@ Because the iframe has an opaque origin, dictionary XHR/fetch requests send
 `Origin: null`; the read-only API must explicitly allow that origin when this
 compatibility mode is enabled. Classic script element loads do not grant the
 dictionary access to the host document.
+
+Failed external dictionary stylesheets and scripts are not treated as a
+successful render. The component keeps the fallback article visible, changes
+`state` to `"error"`, exposes the failures through `view.resourceErrors`, and
+emits `GOLDENDICT_EVENTS.resourceError` with the failed URL and resource type:
+
+```ts
+view.addEventListener(GOLDENDICT_EVENTS.resourceError, (event) => {
+  const { detail } = event as CustomEvent;
+  console.error("Dictionary sidecar failed", detail);
+});
+```
+
+This diagnoses top-level `<link rel="stylesheet">` and `<script src>` failures;
+font/image failures and exceptions thrown inside dictionary code remain normal
+browser console/network diagnostics.
 
 Run the package demo from the workspace root with `npm run dev`. It discovers
 the dictionaries loaded from the backend's configured local paths at startup.

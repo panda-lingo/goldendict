@@ -202,6 +202,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         headers = {
             "Accept-Ranges": "bytes",
             "Cache-Control": resource.cache_control,
+            # Article documents intentionally have an opaque sandbox origin.
+            # Make the public, read-only dictionary assets embeddable even when
+            # the host enables cross-origin isolation.
+            "Cross-Origin-Resource-Policy": "cross-origin",
             "ETag": resource.etag,
             "X-Content-Type-Options": "nosniff",
         }

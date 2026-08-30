@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.3`; for example:
+container and npm package version and defaults to `0.1.4`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.3 \
+GOLDENDICT_RELEASE=0.1.4 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -62,6 +62,28 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 Use `GOLDENDICT_DEMO_PORT` or `GOLDENDICT_API_PORT` to change the host ports.
 The dictionary directory remains a read-only bind mount, and native indexes are
 kept in the Compose-managed `published-native-indices` volume.
+The npm consumer image is rebuilt by Compose, so updating the API cannot
+silently leave an older local demo image running. Its OCI version label records
+the selected `GOLDENDICT_RELEASE`.
+
+If a dictionary header renders but its article falls back to plain browser
+headings and bullet lists, the lookup succeeded but one or more dictionary
+sidecars did not. Check the browser Network panel for the exact nested resource
+routes; each must return its asset rather than a proxy's HTML fallback:
+
+```text
+/api/v1/dictionaries/<id>/resources/<dictionary>.css
+/api/v1/dictionaries/<id>/resources/<dictionary>.js
+```
+
+CSS must be served as `text/css` and JavaScript as `text/javascript`. A reverse
+proxy must forward the complete `/api/*` path, must not impose
+`Cross-Origin-Resource-Policy: same-origin`, and must preserve literal `null` in
+`GOLDENDICT_CORS_ORIGINS` so fonts and dictionary fetch/XHR work from the
+opaque-origin sandbox. Confirm the deployed backend with
+`GET /api/v1/health` (`version` should match `GOLDENDICT_RELEASE`).
+The demo changes the article state to `error` and displays the failed stylesheet
+or script URL instead of silently labelling this fallback rendering `Ready`.
 
 ### Build from source
 

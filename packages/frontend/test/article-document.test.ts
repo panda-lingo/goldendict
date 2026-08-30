@@ -88,7 +88,15 @@ describe("buildArticleDocument", () => {
 
     expect(html).toContain('data-gd-runtime="compatibility"');
     expect(html).toContain('globalThis.__DICT__={name:"GoldenDict",version:"web"}');
+    expect(html).toContain('addEventListener("error",(event)=>{');
+    expect(html).toContain('target instanceof HTMLLinkElement');
+    expect(html).toContain('target instanceof HTMLScriptElement');
+    expect(html).toContain('link.sheet!==null');
+    expect(html).toContain('post("resource-error"');
     expect(html.indexOf("globalThis.__DICT__=")).toBeLessThan(
+      html.indexOf(sidecarMarker),
+    );
+    expect(html.indexOf('__GOLDENDICT_WEB_RESOURCE_ERRORS__=pending')).toBeLessThan(
       html.indexOf(sidecarMarker),
     );
   });

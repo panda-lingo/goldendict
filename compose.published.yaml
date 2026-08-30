@@ -2,7 +2,7 @@ name: goldendict-published-demo
 
 services:
   api:
-    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.3}
+    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.4}
     pull_policy: always
     environment:
       GOLDENDICT_DICTIONARY_ROOTS: /dictionaries
@@ -24,11 +24,14 @@ services:
     restart: unless-stopped
 
   demo:
+    # Rebuild the npm consumer whenever the stack is deployed. The API can be
+    # pulled independently, but an older local demo must never be reused.
+    pull_policy: build
     build:
       context: .
       dockerfile: demo/Dockerfile.published
       args:
-        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.3}
+        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.4}
     depends_on:
       api:
         condition: service_healthy

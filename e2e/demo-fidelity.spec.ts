@@ -11,6 +11,7 @@ const resourceNames = [
   "fixture-jquery.js",
   "fixture-sidecar.js",
 ] as const;
+const GOLDENDICT_RESOURCE_ERROR_EVENT = "goldendict-resource-error";
 
 interface RenderedLookup {
   bridgeId: string;
@@ -272,6 +273,57 @@ test("preserves authored fidelity and initializes cached sidecars on consecutive
   expect(failedResources).toEqual([]);
   expect(browserErrors).toEqual([]);
 });
+
+for (const blocked of [
+  { name: "fidelity.css", resourceType: "stylesheet" },
+  { name: "fixture-sidecar.js", resourceType: "script" },
+] as const) {
+  test(`reports a blocked dictionary ${blocked.resourceType} instead of ready`, async ({
+    page,
+  }) => {
+    await page.route(`**/${blocked.name}`, (route) => route.abort("failed"));
+    await page.goto("/");
+    await expect(page.locator("#connection-text")).toHaveText("1 dictionary ready");
+
+    await page.locator("#query").fill("example");
+    await page.getByRole("button", { name: "Look up" }).click();
+
+    const state = page.locator("#view-state");
+    await expect(state).toHaveAttribute("data-state", "error");
+    const view = page.locator("#dictionary-view");
+    await expect(view.locator("iframe")).toBeVisible();
+    await expect(view.locator('[part="status"]')).toContainText(blocked.name);
+    await expect(page.locator("#event-log")).toContainText(
+      GOLDENDICT_RESOURCE_ERROR_EVENT,
+    );
+
+    const diagnostics = await view.evaluate((node) => {
+      const component = node as HTMLElement & {
+        state: string;
+        error?: Error;
+        resourceErrors: Array<{
+          resourceType: string;
+          url: string;
+          dictionaryId?: string;
+        }>;
+      };
+      return {
+        state: component.state,
+        error: component.error?.message,
+        resourceErrors: component.resourceErrors,
+      };
+    });
+    expect(diagnostics.state).toBe("error");
+    expect(diagnostics.error).toContain(blocked.name);
+    expect(diagnostics.resourceErrors).toEqual([
+      expect.objectContaining({
+        dictionaryId: "synthetic-fidelity",
+        resourceType: blocked.resourceType,
+        url: expect.stringContaining(blocked.name),
+      }),
+    ]);
+  });
+}
 
 test("keeps logical article geometry invariant across device scale factors", async () => {
   const dprOne = await geometryAtDeviceScaleFactor(1);

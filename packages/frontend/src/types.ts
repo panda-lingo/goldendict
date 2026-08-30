@@ -128,6 +128,15 @@ export interface ExternalLinkEventDetail {
   url: string;
 }
 
+export type DictionaryResourceType = "stylesheet" | "script";
+
+/** A dictionary-authored stylesheet or script that the article could not load. */
+export interface DictionaryResourceErrorEventDetail {
+  resourceType: DictionaryResourceType;
+  url: string;
+  dictionaryId?: string;
+}
+
 export interface ViewStateEventDetail {
   state: ViewState;
   word?: string;
@@ -140,5 +149,6 @@ export const GOLDENDICT_EVENTS = {
   articleToggle: "goldendict-article-toggle",
   mediaRequest: "goldendict-media-request",
   externalLink: "goldendict-external-link",
+  resourceError: "goldendict-resource-error",
   stateChange: "goldendict-state-change",
 } as const;
