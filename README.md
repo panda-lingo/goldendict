@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.1`; for example:
+container and npm package version and defaults to `0.1.2`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.1 \
+GOLDENDICT_RELEASE=0.1.2 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -189,7 +189,18 @@ The component emits cancelable lookup/media/external-link events and state,
 active-article, and collapse events. Dictionary content is rendered in a
 sandboxed, opaque-origin iframe. Scripts are stripped by default; consumers can
 opt into the more compatible `sandboxed` script policy without granting the
-dictionary same-origin access to the host page.
+dictionary same-origin access to the host page. Layout is a separate choice:
+`layoutMode = "fidelity"` preserves GoldenDict-ng and dictionary-authored
+geometry, while the default `"responsive"` mode adds fixed-width browser
+safeguards for narrow containers.
+
+For a trusted local dictionary that depends on sidecars and should retain the
+native GoldenDict cascade:
+
+```ts
+view.layoutMode = "fidelity";
+view.scriptPolicy = "sandboxed";
+```
 
 For example, OALDPE articles retain their `bres://.../oaldpe.js` and
 `bres://.../oaldpe-jquery.js` script references. The REST resource route serves
@@ -197,14 +208,16 @@ those local sidecars as `text/javascript` with
 `X-Content-Type-Options: nosniff`. This does not execute them automatically:
 the frontend's safe default removes dictionary scripts and inline handlers.
 Execution requires the consumer to choose `scriptPolicy = "sandboxed"`, and is
-still confined to the opaque-origin iframe. Such an iframe sends an Origin of
-`null` for XHR/fetch. The bundled demo chooses this compatibility mode for its
-locally mounted dictionaries so its default rendering matches GoldenDict-ng;
-the reusable component still defaults to script removal. The Compose demo permits
-`http://localhost:5173,null` so opted-in dictionary JavaScript can request its
-resources; enable the `null` CORS origin only in deployments that intentionally
-use this opaque-origin sandbox behavior. The backend's general default CORS
-setting remains unchanged.
+still confined to the opaque-origin iframe. Matching GoldenDict-ng layout also
+requires `layoutMode = "fidelity"`; JavaScript permission alone does not alter
+the CSS cascade. Such an iframe sends an Origin of `null` for XHR/fetch. The
+bundled demo chooses sandboxed scripts plus fidelity layout for its locally
+mounted dictionaries so its default rendering matches GoldenDict-ng; the
+reusable component still defaults to script removal and responsive layout. The
+Compose demo permits `http://localhost:5173,null` so opted-in dictionary
+JavaScript can request its resources; enable the `null` CORS origin only in
+deployments that intentionally use this opaque-origin sandbox behavior. The
+backend's general default CORS setting remains unchanged.
 
 Full package usage is in
 [packages/frontend/README.md](packages/frontend/README.md). The demo imports

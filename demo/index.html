@@ -39,10 +39,15 @@
               <h2>Dictionary compatibility</h2>
               <label for="script-policy">Sidecar JavaScript</label>
               <select id="script-policy">
-                <option value="sandboxed">Enabled in sandbox (fidelity)</option>
+                <option value="sandboxed">Enabled in sandbox</option>
                 <option value="none">Disabled (strict mode)</option>
               </select>
-              <p class="hint">The demo enables local dictionary scripts for GoldenDict fidelity. They remain in an opaque-origin iframe without host-page access; use strict mode for untrusted bundles.</p>
+              <label for="layout-mode">Article layout</label>
+              <select id="layout-mode">
+                <option value="fidelity">GoldenDict fidelity</option>
+                <option value="responsive">Responsive safeguards</option>
+              </select>
+              <p class="hint">Script permission and layout fidelity are separate. Fidelity preserves the dictionary's original cascade; responsive mode constrains legacy fixed-width content. Scripts remain in an opaque-origin iframe without host-page access.</p>
             </section>
 
             <section>
@@ -93,7 +98,7 @@
           <span id="view-state" class="state-pill">Idle</span>
           <span id="lookup-time"></span>
         </div>
-        <goldendict-view id="dictionary-view" api-base="/api/v1"></goldendict-view>
+        <goldendict-view id="dictionary-view" api-base="/api/v1" layout-mode="fidelity"></goldendict-view>
 
         <details class="event-panel">
           <summary>Package event log</summary>

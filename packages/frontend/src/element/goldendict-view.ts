@@ -2,6 +2,7 @@ import { DictionaryClient } from "../client/dictionary-client";
 import { buildArticleDocument } from "../renderer/article-document";
 import type {
   ActiveArticleEventDetail,
+  ArticleLayoutMode,
   ArticleToggleEventDetail,
   DictionaryClientOptions,
   ExternalLinkEventDetail,
@@ -59,6 +60,7 @@ export class GoldenDictView extends HTMLElement {
     "preset",
     "theme-mode",
     "script-policy",
+    "layout-mode",
   ];
 
   readonly instanceId = makeInstanceId();
@@ -135,7 +137,10 @@ export class GoldenDictView extends HTMLElement {
         ...this.themeValue,
         mode: (newValue || "light") as GoldenDictTheme["mode"],
       };
-    } else if (name === "script-policy" && this.responseValue) {
+    } else if (
+      (name === "script-policy" || name === "layout-mode") &&
+      this.responseValue
+    ) {
       this.renderResponse(this.responseValue);
     }
   }
@@ -176,6 +181,16 @@ export class GoldenDictView extends HTMLElement {
 
   set scriptPolicy(value: ScriptPolicy) {
     this.setAttribute("script-policy", value);
+  }
+
+  get layoutMode(): ArticleLayoutMode {
+    return this.getAttribute("layout-mode") === "fidelity"
+      ? "fidelity"
+      : "responsive";
+  }
+
+  set layoutMode(value: ArticleLayoutMode) {
+    this.setAttribute("layout-mode", value);
   }
 
   get dictionaryIds(): readonly string[] {
@@ -273,6 +288,7 @@ export class GoldenDictView extends HTMLElement {
       apiBaseUrl: this.clientValue.baseUrl,
       instanceId: bridgeInstanceId,
       scriptPolicy: this.scriptPolicy,
+      layoutMode: this.layoutMode,
       theme: this.themeValue,
     });
     requestAnimationFrame(() => {

@@ -58,13 +58,26 @@ describe("buildArticleDocument", () => {
       theme: { mode: "dark" },
     });
 
-    expect(html).toContain(
-      '<html data-gd-theme="dark" data-darkreader-scheme="dark">',
-    );
+    expect(html).toContain('<html data-gd-theme="dark"');
+    expect(html).toContain('data-darkreader-scheme="dark"');
     expect(html).toContain('"themeMode":"dark"');
     expect(html).toContain('document.querySelectorAll(".oaldpe")');
     expect(html).toContain(
       'attributeFilter:["data-theme","data-darkreader-scheme"]',
     );
+  });
+
+  it("offers a GoldenDict fidelity layout without browser override CSS", () => {
+    const html = buildArticleDocument(response, {
+      apiBaseUrl: "/api/v1",
+      instanceId: "fidelity-instance",
+      scriptPolicy: "sandboxed",
+      layoutMode: "fidelity",
+    });
+
+    expect(html).toContain('data-gd-layout="fidelity"');
+    expect(html).not.toContain('data-gd-style="responsive"');
+    expect(html).toContain('style="display:block" id="gd-fixture"');
+    expect(html).toContain('<div style="clear:both;" aria-hidden="true"></div>');
   });
 });

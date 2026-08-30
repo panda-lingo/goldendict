@@ -11,6 +11,13 @@ export type ThemeMode = "light" | "dark" | "auto";
 
 export type ScriptPolicy = "none" | "sandboxed";
 
+/**
+ * `fidelity` preserves GoldenDict-ng and dictionary-authored layout without
+ * the package's responsive override stylesheet.
+ * `responsive` adds browser safeguards for legacy fixed-width article content.
+ */
+export type ArticleLayoutMode = "fidelity" | "responsive";
+
 export type ViewState =
   | "idle"
   | "loading"

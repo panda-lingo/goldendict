@@ -94,7 +94,7 @@ input[type="color"] { width: 30px; height: 24px; padding: 0; border: 0; backgrou
 .state-pill[data-state="ready"] { color: #067647; background: #dcfae6; }
 .state-pill[data-state="loading"] { color: #b54708; background: #fef0c7; }
 .state-pill[data-state="error"] { color: #b42318; background: #fee4e2; }
-goldendict-view { display: block; max-width: 1080px; margin: 0 auto; border: 1px solid #dfe4ec; border-radius: 12px; background: #fff; box-shadow: 0 12px 38px rgba(16,24,40,.08); }
+goldendict-view { display: block; width: 100%; margin: 0 auto; border: 1px solid #dfe4ec; border-radius: 12px; background: #fff; box-shadow: 0 12px 38px rgba(16,24,40,.08); }
 .event-panel { max-width: 1080px; margin: 16px auto; padding: 11px 14px; border: 1px solid #dfe4ec; border-radius: 9px; background: rgba(255,255,255,.7); }
 .event-panel ol { max-height: 160px; overflow: auto; margin: 10px 0 0; padding-left: 25px; color: #475467; font: 11px/1.5 ui-monospace,monospace; }
 #toast { position: fixed; right: 22px; bottom: 22px; max-width: 360px; padding: 11px 14px; border-radius: 9px; color: white; background: #182230; box-shadow: 0 8px 28px rgba(16,24,40,.25); z-index: 20; }

@@ -6,6 +6,7 @@ import {
 } from "../styles/fidelity";
 import { GOLDENDICT_RESPONSIVE_CSS } from "../styles/responsive";
 import type {
+  ArticleLayoutMode,
   GoldenDictTheme,
   LookupArticle,
   LookupResponse,
@@ -19,6 +20,7 @@ export interface ArticleDocumentOptions {
   apiBaseUrl: string;
   instanceId: string;
   scriptPolicy: ScriptPolicy;
+  layoutMode?: ArticleLayoutMode;
   theme?: GoldenDictTheme;
 }
 
@@ -77,9 +79,9 @@ function renderArticle(
         </span>
       </gd-dict-header>
       <section class="gdarticlebody gdlangfrom-${sourceLanguage}"
-        lang="${targetLanguage}" id="gd-${domId}">${body}</section>
+        lang="${targetLanguage}" style="display:block" id="gd-${domId}">${body}</section>
     </article>
-    <div class="gdclear" aria-hidden="true"></div>
+    <div style="clear:both;" aria-hidden="true"></div>
     <span class="gdarticleseparator"></span>`;
 }
 
@@ -294,6 +296,7 @@ export function buildArticleDocument(
 ): string {
   const theme = options.theme ?? {};
   const themeMode = resolveThemeMode(theme.mode);
+  const layoutMode = options.layoutMode ?? "responsive";
   const nonce = options.instanceId.replace(/[^a-zA-Z0-9_-]/g, "");
   const articles = response.articles
     .map((article) =>
@@ -307,14 +310,14 @@ export function buildArticleDocument(
     ? `${response.word} — ${theme.brandName}`
     : response.word;
   return `<!doctype html>
-<html data-gd-theme="${themeMode}" data-darkreader-scheme="${themeMode}"><head>
+<html data-gd-theme="${themeMode}" data-gd-layout="${layoutMode}" data-darkreader-scheme="${themeMode}"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="${escapeHtml(contentSecurityPolicy(options.scriptPolicy, nonce))}">
   <title>${escapeHtml(title)}</title>
   <style>${escapeStyleText(GOLDENDICT_BASE_CSS)}</style>
   <style>${escapeStyleText(getGoldenDictPresetCss(theme.preset))}</style>
-  <style data-gd-style="responsive">${escapeStyleText(GOLDENDICT_RESPONSIVE_CSS)}</style>
+  ${layoutMode === "responsive" ? `<style data-gd-style="responsive">${escapeStyleText(GOLDENDICT_RESPONSIVE_CSS)}</style>` : ""}
   <style>${themeToCss(theme)}</style>
   <style media="print">${escapeStyleText(GOLDENDICT_PRINT_CSS)}</style>
 </head><body>

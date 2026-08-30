@@ -4,6 +4,7 @@ import {
   GOLDENDICT_EVENTS,
   LIGHT_THEME_TOKENS,
   resolveThemeMode,
+  type ArticleLayoutMode,
   type DictionarySummary,
   type GoldenDictPreset,
   type GoldenDictTheme,
@@ -24,6 +25,7 @@ function element<T extends HTMLElement>(id: string): T {
 const apiBaseInput = element<HTMLInputElement>("api-base");
 const dictionaryView = element<GoldenDictView>("dictionary-view");
 const scriptPolicyInput = element<HTMLSelectElement>("script-policy");
+const layoutModeInput = element<HTMLSelectElement>("layout-mode");
 const dictionaryList = element<HTMLDivElement>("dictionary-list");
 const queryInput = element<HTMLInputElement>("query");
 const statePill = element<HTMLSpanElement>("view-state");
@@ -207,6 +209,10 @@ scriptPolicyInput.addEventListener("change", () => {
 });
 dictionaryView.scriptPolicy =
   scriptPolicyInput.value === "sandboxed" ? "sandboxed" : "none";
+layoutModeInput.addEventListener("change", () => {
+  dictionaryView.layoutMode = layoutModeInput.value as ArticleLayoutMode;
+});
+dictionaryView.layoutMode = layoutModeInput.value as ArticleLayoutMode;
 
 for (const id of [
   "preset",

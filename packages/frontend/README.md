@@ -28,6 +28,24 @@ scrollable, unwraps common floated wiki panels on narrow screens, and keeps
 article headers usable with coarse pointers. The pinned GoldenDict-ng CSS stays
 unchanged so upstream updates remain straightforward.
 
+For GoldenDict-compatible article geometry, select the fidelity layout. This
+omits the browser override layer so the upstream body margin, content-box model,
+dictionary header flow, and dictionary-authored CSS cascade remain intact.
+Script permission is independent: a dictionary may require both fidelity layout
+and sandboxed sidecar JavaScript.
+
+```ts
+view.layoutMode = "fidelity";
+view.scriptPolicy = "sandboxed";
+```
+
+The default `layoutMode` is `"responsive"`; the bundled demo deliberately uses
+`"fidelity"` so it can be compared directly with GoldenDict-ng. Consumers can
+also set `layout-mode="fidelity"` on the custom element.
+
+Compare at the same CSS viewport, device scale, and GoldenDict zoom: those host
+browser settings still affect physical pixel size and line wrapping.
+
 ```css
 .dictionary-column {
   min-width: 0;
@@ -59,10 +77,11 @@ explicit `"sandboxed"` policy retains them inside the iframe, which never gets
 `allow-same-origin`. Lookup, media, and external-link events are cancelable so a
 host application can replace the default navigation behavior.
 
-The bundled demo deliberately selects `"sandboxed"` for locally mounted
-dictionaries so script-dependent formats such as OALDPE render with their full
-GoldenDict typography and interactions. This demo choice does not change the
-component's safer `"none"` default for consumers.
+The bundled demo deliberately selects `"sandboxed"` scripts and `"fidelity"`
+layout for locally mounted dictionaries so script-dependent formats such as
+OALDPE render with their GoldenDict typography, geometry, and interactions.
+These demo choices do not change the component defaults (`"none"` scripts and
+`"responsive"` layout) for consumers.
 
 In sandboxed mode, external sidecars such as `bres://.../Dictionary-UI.js` are
 routed through the article's `resourceBaseUrl` without changing filename case.

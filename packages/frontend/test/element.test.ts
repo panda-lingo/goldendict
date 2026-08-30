@@ -12,11 +12,40 @@ describe("GoldenDictView requests", () => {
     const styles = view.shadowRoot?.querySelector("style")?.textContent ?? "";
 
     expect(view.scriptPolicy).toBe("none");
+    expect(view.layoutMode).toBe("responsive");
     expect(styles).toContain("width:100%");
     expect(styles).toContain("max-width:100%");
     expect(styles).toContain("container:goldendict-view / inline-size");
     expect(styles).toContain("@container goldendict-view (max-width:30rem)");
     expect(styles).toContain("overflow-wrap:anywhere");
+  });
+
+  it("rerenders an article when its layout policy changes", async () => {
+    defineGoldendictView();
+    const view = document.createElement("goldendict-view") as GoldenDictView;
+    view.setLookupResponse({
+      word: "layout",
+      lookupTimeMs: 1,
+      suggestions: [],
+      articles: [
+        {
+          dictionaryId: "fixture",
+          dictionaryName: "Fixture",
+          format: "mdict",
+          html: "<p>Article</p>",
+        },
+      ],
+    });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(view.shadowRoot?.querySelector("iframe")?.srcdoc).toContain(
+      'data-gd-style="responsive"',
+    );
+
+    view.layoutMode = "fidelity";
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const html = view.shadowRoot?.querySelector("iframe")?.srcdoc ?? "";
+    expect(html).toContain('data-gd-layout="fidelity"');
+    expect(html).not.toContain('data-gd-style="responsive"');
   });
 
   it("aborts an in-flight lookup when a newer lookup starts", async () => {
