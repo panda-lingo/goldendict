@@ -5,6 +5,8 @@ import type {
   LoadDictionaryResponse,
   LookupOptions,
   LookupResponse,
+  SuggestionsOptions,
+  SuggestionsResponse,
 } from "../types";
 
 export class DictionaryApiError extends Error {
@@ -140,6 +142,36 @@ export class DictionaryClient {
     return {
       word: response.word,
       articles: response.articles ?? [],
+      suggestions: response.suggestions ?? [],
+      lookupTimeMs: response.lookupTimeMs ?? 0,
+    };
+  }
+
+  async suggestions(
+    prefix: string,
+    options: SuggestionsOptions = {},
+  ): Promise<SuggestionsResponse> {
+    const normalizedPrefix = prefix.trim();
+    if (!normalizedPrefix) {
+      throw new TypeError("Suggestion prefix must not be empty");
+    }
+    const limit = options.limit ?? 20;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new RangeError("Suggestion limit must be an integer between 1 and 100");
+    }
+    const query = new URLSearchParams({
+      prefix: normalizedPrefix,
+      limit: String(limit),
+    });
+    if (options.dictionaryIds?.length) {
+      query.set("dictionary_ids", options.dictionaryIds.join(","));
+    }
+    const response = await this.request<SuggestionsResponse>(
+      `/suggestions?${query.toString()}`,
+      { signal: options.signal },
+    );
+    return {
+      prefix: response.prefix ?? normalizedPrefix,
       suggestions: response.suggestions ?? [],
       lookupTimeMs: response.lookupTimeMs ?? 0,
     };

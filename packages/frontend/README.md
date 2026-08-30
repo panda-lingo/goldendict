@@ -17,6 +17,14 @@ view.client = new DictionaryClient({ baseUrl: "/api/v1" });
 await view.lookup("example");
 ```
 
+Search-first hosts can request bounded prefix suggestions through the same
+client and API base before committing an article lookup:
+
+```ts
+const result = await view.client.suggestions("exam", { limit: 20 });
+console.log(result.suggestions);
+```
+
 Importing the package registers `<goldendict-view>` automatically. Call
 `defineGoldendictView("my-dictionary-view")` when a custom tag name is useful.
 
@@ -64,8 +72,8 @@ it when a particular dictionary requires different behavior. Set
 
 The public API includes:
 
-- `DictionaryClient` for dictionary listing and lookup, plus the backend's
-  explicitly opt-in server-path load operation.
+- `DictionaryClient` for dictionary listing, prefix suggestions, and lookup,
+  plus the backend's explicitly opt-in server-path load operation.
 - `GoldenDictView` and `defineGoldendictView` for framework-independent use.
 - `GoldenDictTheme`, light/dark token presets, and `themeToCss` for branding.
 - `GOLDENDICT_EVENTS` for lookup, active article, collapse, media, external-link,

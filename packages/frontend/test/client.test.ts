@@ -55,6 +55,45 @@ describe("DictionaryClient", () => {
     );
   });
 
+  it("requests bounded suggestions with the same prefixed API client", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        prefix: "ex",
+        suggestions: ["exam", "example"],
+        lookupTimeMs: 3,
+      }),
+    );
+    const client = new DictionaryClient({
+      baseUrl: "/speak/mdict/api/v1/",
+      fetch: fetchMock,
+    });
+
+    await expect(
+      client.suggestions(" ex ", {
+        dictionaryIds: ["one", "two"],
+        limit: 12,
+      }),
+    ).resolves.toEqual({
+      prefix: "ex",
+      suggestions: ["exam", "example"],
+      lookupTimeMs: 3,
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/speak/mdict/api/v1/suggestions?prefix=ex&limit=12&dictionary_ids=one%2Ctwo",
+    );
+  });
+
+  it("rejects blank suggestion prefixes and out-of-contract limits", async () => {
+    const client = new DictionaryClient({ fetch: vi.fn() });
+
+    await expect(client.suggestions("  ")).rejects.toThrow(
+      "Suggestion prefix must not be empty",
+    );
+    await expect(client.suggestions("ex", { limit: 101 })).rejects.toThrow(
+      "Suggestion limit must be an integer between 1 and 100",
+    );
+  });
+
   it("surfaces nested backend error messages", async () => {
     const client = new DictionaryClient({
       fetch: vi

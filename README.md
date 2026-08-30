@@ -51,10 +51,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.4`; for example:
+container and npm package version and defaults to `0.1.5`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.4 \
+GOLDENDICT_RELEASE=0.1.5 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -194,6 +194,7 @@ const view = document.querySelector("goldendict-view");
 view.client = new DictionaryClient({
   baseUrl: "https://dictionary.example/api/v1",
 });
+const suggestions = await view.client.suggestions("exam", { limit: 20 });
 view.theme = {
   brandName: "Acme Lexicon",
   preset: "modern",

@@ -71,6 +71,16 @@ export interface LookupOptions {
   signal?: AbortSignal;
 }
 
+export interface SuggestionsResponse {
+  prefix: string;
+  suggestions: string[];
+  lookupTimeMs: number;
+}
+
+export interface SuggestionsOptions extends LookupOptions {
+  limit?: number;
+}
+
 export interface DictionaryClientOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
