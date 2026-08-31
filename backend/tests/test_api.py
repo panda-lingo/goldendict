@@ -25,16 +25,6 @@ def test_api_contract_is_camel_case_and_has_no_upload_route(settings, dictionary
     assert "/api/v1/dictionaries/{dictionary_id}" not in paths
 
 
-def test_runtime_catalog_mutations_are_explicitly_opt_in(settings):
-    app = create_app(replace(settings, runtime_catalog_mutations=True))
-
-    with TestClient(app) as client:
-        paths = client.get("/openapi.json").json()["paths"]
-
-    assert "/api/v1/dictionaries/load" in paths
-    assert "/api/v1/dictionaries/{dictionary_id}" in paths
-
-
 def test_explicit_opaque_sandbox_origin_is_allowed_for_dictionary_resources(
     settings, dictionary_root: Path
 ):

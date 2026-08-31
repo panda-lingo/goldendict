@@ -5,7 +5,6 @@ from .base import (
     DictionaryArticle,
     DictionaryMetadata,
     DictionaryResource,
-    UnsupportedDictionaryFormat,
 )
 
 __all__ = [
@@ -13,5 +12,4 @@ __all__ = [
     "DictionaryArticle",
     "DictionaryMetadata",
     "DictionaryResource",
-    "UnsupportedDictionaryFormat",
 ]

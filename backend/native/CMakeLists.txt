@@ -28,9 +28,13 @@ find_package(Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui Svg Widgets Xml)
 find_package(BZip2 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(LibLZMA REQUIRED)
+find_package(tomlplusplus CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Iconv REQUIRED)
 find_library(LZO2_LIBRARY NAMES lzo2 REQUIRED)
+find_library(EB_LIBRARY NAMES eb REQUIRED)
+find_library(LIBZIM_LIBRARY NAMES zim REQUIRED)
+find_library(VORBISFILE_LIBRARY NAMES vorbisfile REQUIRED)
 
 set(GD_SRC "${GOLDENDICT_NG_SOURCE}/src")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/prepare_mdx_source.cmake")
@@ -50,6 +54,7 @@ set(GOLDENDICT_MDX_SOURCES
   "${GD_SRC}/dict/utils/splitfile.cc"
   "${GD_SRC}/dict/utils/zipfile.cc"
   "${GD_SRC}/common/filetype.cc"
+  "${GD_SRC}/common/dictionary_icon_name.cc"
   "${GD_SRC}/common/folding.cc"
   "${GD_SRC}/common/globalregex.cc"
   "${GD_SRC}/common/htmlescape.cc"
@@ -59,27 +64,73 @@ set(GOLDENDICT_MDX_SOURCES
   "${GD_SRC}/common/wildcard.cc"
   "${GD_SRC}/langcoder.cc"
   "${GD_SRC}/language.cc"
+  "${GD_SRC}/metadata.cc"
+  "${GD_SRC}/tiff.cc"
 )
 
-# Phase-one local formats use the same Dictionary::Class interface and index
-# primitives. These are also compiled in place from the pinned checkout.
-set(GOLDENDICT_DSL_STARDICT_SOURCES
+# GoldenDict-ng's complete file-backed factory set. These are compiled in
+# place from the pinned checkout and kept in the same order as
+# LoadDictionaries::handlePath(). Sound directories, Hunspell morphology,
+# network dictionaries, programs, and transliterations are configuration-
+# backed providers rather than on-disk dictionary formats.
+set(GOLDENDICT_LOCAL_FORMAT_SOURCES
+  "${GD_SRC}/dict/aard.cc"
+  "${GD_SRC}/dict/bgl.cc"
+  "${GD_SRC}/dict/bgl_babylon.cc"
+  "${GD_SRC}/dict/dictdfiles.cc"
   "${GD_SRC}/dict/dsl.cc"
   "${GD_SRC}/dict/dsl_details.cc"
+  "${GD_SRC}/dict/epwing.cc"
+  "${GD_SRC}/dict/epwing_book.cc"
+  "${GD_SRC}/dict/epwing_charmap.cc"
+  "${GD_SRC}/dict/gls.cc"
+  "${GD_SRC}/dict/lsa.cc"
+  "${GD_SRC}/dict/sdict.cc"
+  "${GD_SRC}/dict/slob.cc"
   "${GD_SRC}/dict/stardict.cc"
+  "${GD_SRC}/dict/xdxf.cc"
   "${GD_SRC}/dict/xdxf2html.cc"
+  "${GD_SRC}/dict/zim.cc"
+  "${GD_SRC}/dict/zipsounds.cc"
   "${GD_SRC}/dict/utils/dictzip.c"
   "${GD_SRC}/dict/utils/indexedzip.cc"
   "${GD_SRC}/dict/utils/ufile.cc"
+)
+
+set(GOLDENDICT_FORMAT_ICON_FILES
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_aard.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_bgl.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_dictd.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_dsl.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_epwing.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_gls.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_sdict.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_slob.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_stardict.svg"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_xdxf.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/icon32_zim.svg"
+  "${GOLDENDICT_NG_SOURCE}/icons/lsasound.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/mdict-bg.svg"
+  "${GOLDENDICT_NG_SOURCE}/icons/mdict.png"
+  "${GOLDENDICT_NG_SOURCE}/icons/zipsound.svg"
 )
 
 add_executable(goldendict-native-worker
   src/main.cc
   src/headless_shims.cc
   ${GOLDENDICT_MDX_SOURCES}
-  ${GOLDENDICT_DSL_STARDICT_SOURCES}
+  ${GOLDENDICT_LOCAL_FORMAT_SOURCES}
   # QObject types declared by the upstream public dictionary interface.
   "${GD_SRC}/dict/dictionary.hh"
+)
+
+# Embed exactly the upstream assets requested by the enabled format factories.
+# GoldenDict-ng's desktop resources.qrc also references a generated version.txt
+# that is intentionally absent from a source checkout.
+qt_add_resources(goldendict-native-worker goldendict_format_icons
+  PREFIX "/"
+  BASE "${GOLDENDICT_NG_SOURCE}"
+  FILES ${GOLDENDICT_FORMAT_ICON_FILES}
 )
 
 add_executable(resource-guard-test tests/resource_guard_test.cc)
@@ -99,6 +150,8 @@ target_include_directories(goldendict-native-worker PRIVATE
 )
 
 target_compile_definitions(goldendict-native-worker PRIVATE
+  EPWING_SUPPORT
+  MAKE_ZIM_SUPPORT
   GOLDENDICT_NG_COMMIT="${GOLDENDICT_NG_COMMIT}"
   GOLDENDICT_NG_DIRTY="${GOLDENDICT_NG_DIRTY}"
   GOLDENDICT_NG_DIFF_SHA256="${GOLDENDICT_NG_DIFF_SHA256}"
@@ -124,9 +177,13 @@ target_link_libraries(goldendict-native-worker PRIVATE
   BZip2::BZip2
   fmt::fmt
   LibLZMA::LibLZMA
+  tomlplusplus::tomlplusplus
   ZLIB::ZLIB
   Iconv::Iconv
   "${LZO2_LIBRARY}"
+  "${EB_LIBRARY}"
+  "${LIBZIM_LIBRARY}"
+  "${VORBISFILE_LIBRARY}"
 )
 
 install(TARGETS goldendict-native-worker RUNTIME DESTINATION bin)

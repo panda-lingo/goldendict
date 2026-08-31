@@ -24,6 +24,7 @@ describe("buildArticleDocument", () => {
       apiBaseUrl: "/api/v1",
       instanceId: "test-instance",
       scriptPolicy: "none",
+      layoutMode: "responsive",
       theme: {
         preset: "modern",
         cssText: "/* consumer-responsive-override */",
@@ -101,12 +102,11 @@ describe("buildArticleDocument", () => {
     );
   });
 
-  it("offers a GoldenDict fidelity layout without browser override CSS", () => {
+  it("defaults to GoldenDict fidelity without browser override CSS", () => {
     const html = buildArticleDocument(response, {
       apiBaseUrl: "/api/v1",
       instanceId: "fidelity-instance",
       scriptPolicy: "sandboxed",
-      layoutMode: "fidelity",
     });
 
     expect(html).toContain('data-gd-layout="fidelity"');

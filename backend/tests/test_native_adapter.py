@@ -8,9 +8,6 @@ from app.adapters.native import NativeDictionaryAdapter, NativeWorkerClient
 from app.config import Settings
 from app.service import DictionaryService
 
-from conftest import FakeAdapter
-
-
 def _fake_worker(tmp_path: Path) -> Path:
     worker = tmp_path / "fake-native-worker"
     worker.write_text(
@@ -37,6 +34,10 @@ def _fake_worker(tmp_path: Path) -> Path:
             emit({
                 "event": "ready",
                 "upstreamCommit": "5ad66765aa423d381025566bff990f7d8007be84",
+                "supportedFormats": [
+                    "bgl", "stardict", "lsa", "dsl", "dictd", "xdxf", "sdict",
+                    "aard", "zipsounds", "mdx", "gls", "slob", "zim", "epwing"
+                ],
                 "dictionaries": [{
                     "id": dictionary_id,
                     "name": "Native Fixture",
@@ -46,6 +47,7 @@ def _fake_worker(tmp_path: Path) -> Path:
                     "sourceLanguage": "en",
                     "targetLanguage": "fr",
                     "iconUrl": None,
+                    "iconResourcePath": "icon.png",
                     "resourceBaseUrl": "/api/v1/dictionaries/native-fixture/resources/",
                 }],
             })
@@ -53,6 +55,8 @@ def _fake_worker(tmp_path: Path) -> Path:
                 request = json.loads(line)
                 request_id = request["id"]
                 operation = request["op"]
+                with (Path(args.index_dir) / "requests.log").open("a", encoding="utf-8") as log:
+                    log.write(operation + "\\n")
                 if operation == "lookup":
                     articles = []
                     if request["word"].casefold() == "hello":
@@ -67,7 +71,11 @@ def _fake_worker(tmp_path: Path) -> Path:
                                 "<script src='bres://native-fixture/oaldpe.js'></script></div>"
                             ),
                         })
-                    result = {"word": request["word"], "articles": articles, "suggestions": []}
+                    values = [
+                        value for value in ("Hello", "Help")
+                        if value.lower().startswith(request["word"].lower())
+                    ][:request.get("suggestionLimit", 0)]
+                    result = {"word": request["word"], "articles": articles, "suggestions": values}
                     emit({"id": request_id, "ok": True, "result": result})
                 elif operation == "suggestions":
                     values = [value for value in ("Hello", "Help") if value.lower().startswith(request["prefix"].lower())]
@@ -78,6 +86,7 @@ def _fake_worker(tmp_path: Path) -> Path:
                             b".entry{background:url('image.png');"
                             b"src:url('bres://native-fixture/Fonts/A.WOFF2')}"
                         ),
+                        "icon.png": b"\\x89PNG\\r\\n\\x1a\\nnative-icon",
                         "image.png": b"fake-png",
                         "scan.tiff": b"\\x89PNG\\r\\n\\x1a\\nconverted",
                         "oaldpe-jquery.js": b"globalThis.jQuery = {};",
@@ -128,6 +137,7 @@ def test_native_worker_adapter_preserves_browser_contract(tmp_path: Path) -> Non
     try:
         assert adapter.metadata.main_path == (root / "fixture.mdx").resolve()
         assert adapter.metadata.format == "mdict"
+        assert adapter.metadata.icon_resource_path == "icon.png"
         assert adapter.suggestions("he", 1) == ["Hello"]
         article = adapter.lookup("hello")
         assert article is not None
@@ -141,6 +151,10 @@ def test_native_worker_adapter_preserves_browser_contract(tmp_path: Path) -> Non
         assert b"/api/v1/dictionaries/native-fixture/resources/image.png" in css.body
         assert b"/api/v1/dictionaries/native-fixture/resources/Fonts/A.WOFF2" in css.body
         assert b"/resources/native-fixture/Fonts/A.WOFF2" not in css.body
+        icon = adapter.resource("icon.png")
+        assert icon is not None
+        assert icon.media_type == "image/png"
+        assert icon.body.startswith(b"\x89PNG\r\n\x1a\n")
         converted_tiff = adapter.resource("scan.tiff")
         assert converted_tiff is not None
         assert converted_tiff.media_type == "image/png"
@@ -185,16 +199,16 @@ def test_native_local_sidecar_symlink_cannot_escape_bundle(tmp_path: Path) -> No
         client.close()
 
 
-def test_startup_scan_prefers_native_and_keeps_python_fallback(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
+def test_startup_scan_publishes_only_the_goldendict_worker_catalog(tmp_path: Path) -> None:
     root = tmp_path / "dictionaries"
     root.mkdir()
     mdx = root / "fixture.mdx"
     mdx.write_bytes(b"fixture")
-    dsl = root / "fallback.dsl"
-    dsl.write_text("#NAME fallback\nhello\n definition\n", encoding="utf-8")
+    # The REST process never attempts to parse files itself. GoldenDict-ng is
+    # the sole catalog authority, including for formats it elects not to load.
+    (root / "not-published.dsl").write_text(
+        "#NAME ignored-by-fake-worker\nhello\n definition\n", encoding="utf-8"
+    )
     settings = Settings(
         dictionary_roots=(root,),
         native_worker=_fake_worker(tmp_path),
@@ -203,30 +217,28 @@ def test_startup_scan_prefers_native_and_keeps_python_fallback(
         native_request_timeout_seconds=2,
     )
     service = DictionaryService(settings)
-    fallback = FakeAdapter(dsl, dictionary_id="python-fallback")
-    python_paths: list[Path] = []
-
-    def make_adapter(path: Path, name: str | None = None):
-        python_paths.append(path)
-        return fallback
-
-    monkeypatch.setattr(service, "_make_adapter", make_adapter)
     service.scan()
 
     try:
-        assert python_paths == [dsl.resolve()]
-        assert [item.id for item in service.dictionaries()] == ["python-fallback", "native-fixture"]
+        assert service.ready is True
+        assert [item.id for item in service.dictionaries()] == ["native-fixture"]
         response = service.lookup("hello", ["native-fixture"])
         assert response.articles[0].format == "mdict"
         assert response.articles[0].dictionary_name == "Native Fixture"
+        assert response.articles[0].icon_url is not None
+        assert response.articles[0].icon_url.endswith("/resources/icon.png")
+        assert response.suggestions == ["Hello"]
+        # Article bodies and prefix suggestions share one native request. The
+        # previous per-adapter path emitted lookup + suggestions for every
+        # selected dictionary.
+        assert (tmp_path / "indices" / "requests.log").read_text(
+            encoding="utf-8"
+        ).splitlines() == ["lookup"]
     finally:
         service.close()
 
 
-def test_native_start_failure_records_error_and_uses_python_reader(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
+def test_native_start_failure_records_error_and_keeps_catalog_empty(tmp_path: Path) -> None:
     root = tmp_path / "dictionaries"
     root.mkdir()
     mdx = root / "fixture.mdx"
@@ -237,42 +249,30 @@ def test_native_start_failure_records_error_and_uses_python_reader(
         native_index_dir=tmp_path / "indices",
     )
     service = DictionaryService(settings)
-    fallback = FakeAdapter(mdx, dictionary_id="python-fallback")
-    monkeypatch.setattr(service, "_make_adapter", lambda path, name=None: fallback)
 
     service.scan()
 
-    assert [item.id for item in service.dictionaries()] == ["python-fallback"]
+    assert service.ready is False
+    assert service.dictionaries() == []
     assert any(error.startswith("native worker: NativeWorkerError:") for error in service.startup_errors)
     service.close()
 
 
-def test_required_native_failure_keeps_service_unready(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    root = tmp_path / "dictionaries"
-    root.mkdir()
-    mdx = root / "fixture.mdx"
-    mdx.write_bytes(b"fixture")
+def test_unavailable_dictionary_roots_keep_service_unready(tmp_path: Path) -> None:
+    root = tmp_path / "missing-dictionaries"
     service = DictionaryService(
         Settings(
             dictionary_roots=(root,),
-            native_worker=tmp_path / "does-not-exist",
-            native_required=True,
+            native_worker=_fake_worker(tmp_path),
             native_index_dir=tmp_path / "indices",
         )
-    )
-    monkeypatch.setattr(
-        service,
-        "_make_adapter",
-        lambda path, name=None: FakeAdapter(mdx, dictionary_id="python-fallback"),
     )
 
     service.scan()
 
     assert service.ready is False
-    assert any("required native dictionary was not published" in error for error in service.startup_errors)
+    assert service.dictionaries() == []
+    assert any("dictionary root is unavailable" in error for error in service.startup_errors)
     service.close()
 
 

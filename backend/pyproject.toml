@@ -4,16 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "goldendict-dictionary-api"
-version = "0.1.7"
-description = "Dictionary-only GoldenDict-compatible REST service"
+version = "0.1.8"
+description = "Dictionary-only REST gateway for GoldenDict-ng"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "GPL-3.0-or-later" }
 dependencies = [
-  "beautifulsoup4>=4.12,<5",
   "fastapi>=0.115,<1",
-  "python-lzo>=1.15,<2",
-  "readmdict==0.1.1",
   "uvicorn[standard]>=0.30,<1",
 ]
 
@@ -31,9 +28,6 @@ include = ["app*"]
 addopts = "-ra"
 pythonpath = ["."]
 testpaths = ["tests"]
-markers = [
-  "integration: requires a real dictionary fixture",
-]
 
 [tool.coverage.run]
 branch = true

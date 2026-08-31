@@ -2,15 +2,13 @@ name: goldendict-published-demo
 
 services:
   api:
-    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.7}
+    image: ghcr.io/panda-lingo/goldendict:${GOLDENDICT_RELEASE:-0.1.8}
     pull_policy: always
     environment:
       GOLDENDICT_DICTIONARY_ROOTS: /dictionaries
       GOLDENDICT_CORS_ORIGINS: "http://localhost:${GOLDENDICT_DEMO_PORT:-5173},null"
       GOLDENDICT_NATIVE_INDEX_DIR: /var/lib/goldendict/indices
-      GOLDENDICT_NATIVE_REQUIRED: "true"
       GOLDENDICT_NATIVE_WORKER: /usr/local/bin/goldendict-native-worker
-      GOLDENDICT_RUNTIME_CATALOG_MUTATIONS: "false"
     ports:
       - "${GOLDENDICT_API_PORT:-8080}:8080"
     volumes:
@@ -31,7 +29,7 @@ services:
       context: .
       dockerfile: demo/Dockerfile.published
       args:
-        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.7}
+        GOLDENDICT_FRONTEND_VERSION: ${GOLDENDICT_RELEASE:-0.1.8}
     depends_on:
       api:
         condition: service_healthy

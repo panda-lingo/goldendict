@@ -9,12 +9,18 @@ export type GoldenDictPreset =
 
 export type ThemeMode = "light" | "dark" | "auto";
 
+/**
+ * `sandboxed` (the default) retains GoldenDict-ng dictionary JavaScript in an
+ * opaque-origin iframe. `none` is the strict opt-out that removes scripts and
+ * inline handlers.
+ */
 export type ScriptPolicy = "none" | "sandboxed";
 
 /**
- * `fidelity` preserves GoldenDict-ng and dictionary-authored layout without
- * the package's responsive override stylesheet.
- * `responsive` adds browser safeguards for legacy fixed-width article content.
+ * `fidelity` (the default) preserves GoldenDict-ng and dictionary-authored
+ * layout without the package's responsive override stylesheet. `responsive`
+ * is an explicit opt-in for browser safeguards around legacy fixed-width
+ * article content.
  */
 export type ArticleLayoutMode = "fidelity" | "responsive";
 
@@ -35,17 +41,6 @@ export interface DictionarySummary {
   iconUrl?: string;
   resourceBaseUrl?: string;
   wordCount?: number;
-}
-
-export interface LoadDictionaryRequest {
-  path: string;
-  name?: string;
-}
-
-export interface LoadDictionaryResponse {
-  dictionary: DictionarySummary;
-  loaded: boolean;
-  message?: string;
 }
 
 export interface LookupArticle {

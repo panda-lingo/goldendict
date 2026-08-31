@@ -1,8 +1,6 @@
 import type {
   DictionaryClientOptions,
   DictionarySummary,
-  LoadDictionaryRequest,
-  LoadDictionaryResponse,
   LookupOptions,
   LookupResponse,
   SuggestionsOptions,
@@ -91,38 +89,6 @@ export class DictionaryClient {
     >("/dictionaries", { signal });
     const dictionaries = Array.isArray(body) ? body : body.dictionaries;
     return dictionaries.map(normalizeDictionary);
-  }
-
-  async loadDictionary(
-    input: LoadDictionaryRequest,
-    signal?: AbortSignal,
-  ): Promise<LoadDictionaryResponse> {
-    if (!input.path.trim()) {
-      throw new TypeError("Dictionary path must not be empty");
-    }
-    const body = await this.request<
-      | DictionaryLike
-      | {
-          dictionary: DictionaryLike;
-          loaded?: boolean;
-          message?: string;
-        }
-    >("/dictionaries/load", {
-      method: "POST",
-      signal,
-      body: JSON.stringify({
-        path: input.path,
-        ...(input.name?.trim() ? { name: input.name.trim() } : {}),
-      }),
-    });
-    if ("dictionary" in body) {
-      return {
-        dictionary: normalizeDictionary(body.dictionary),
-        loaded: body.loaded ?? true,
-        ...(body.message ? { message: body.message } : {}),
-      };
-    }
-    return { dictionary: normalizeDictionary(body), loaded: true };
   }
 
   async lookup(word: string, options: LookupOptions = {}): Promise<LookupResponse> {

@@ -40,7 +40,7 @@ function safeDomId(value: string): string {
 }
 
 function safeLanguageClass(value: string | undefined): string {
-  return (value ?? "unknown").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+  return (value ?? "").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 }
 
 function articleIconUrl(article: LookupArticle, apiBaseUrl: string): string {
@@ -358,7 +358,7 @@ export function buildArticleDocument(
 ): string {
   const theme = options.theme ?? {};
   const themeMode = resolveThemeMode(theme.mode);
-  const layoutMode = options.layoutMode ?? "responsive";
+  const layoutMode = options.layoutMode ?? "fidelity";
   const nonce = options.instanceId.replace(/[^a-zA-Z0-9_-]/g, "");
   const articles = response.articles
     .map((article) =>

@@ -15,8 +15,8 @@ describe("GoldenDictView requests", () => {
     const view = document.createElement("goldendict-view") as GoldenDictView;
     const styles = view.shadowRoot?.querySelector("style")?.textContent ?? "";
 
-    expect(view.scriptPolicy).toBe("none");
-    expect(view.layoutMode).toBe("responsive");
+    expect(view.scriptPolicy).toBe("sandboxed");
+    expect(view.layoutMode).toBe("fidelity");
     expect(styles).toContain("width:100%");
     expect(styles).toContain("max-width:100%");
     expect(styles).toContain("container:goldendict-view / inline-size");
@@ -42,14 +42,14 @@ describe("GoldenDictView requests", () => {
     });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(view.shadowRoot?.querySelector("iframe")?.srcdoc).toContain(
-      'data-gd-style="responsive"',
+      'data-gd-layout="fidelity"',
     );
 
-    view.layoutMode = "fidelity";
+    view.layoutMode = "responsive";
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     const html = view.shadowRoot?.querySelector("iframe")?.srcdoc ?? "";
-    expect(html).toContain('data-gd-layout="fidelity"');
-    expect(html).not.toContain('data-gd-style="responsive"');
+    expect(html).toContain('data-gd-layout="responsive"');
+    expect(html).toContain('data-gd-style="responsive"');
   });
 
   it("aborts an in-flight lookup when a newer lookup starts", async () => {

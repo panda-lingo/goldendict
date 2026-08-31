@@ -11,24 +11,23 @@ The repository contains three independently usable pieces:
   headless GoldenDict-ng C++ worker and scans configured local paths at startup.
   There is no file-upload endpoint.
 - `packages/frontend/` — the framework-independent
-  `@panda-lingo/goldendict` package and responsive `<goldendict-view>` custom
+  `@panda-lingo/goldendict` package and `<goldendict-view>` custom
   element.
 - `demo/` — a real consumer of the package public API with dictionary,
   display-preset, light/dark, and custom-brand controls.
 
 ## Supported dictionary files
 
-The backend currently loads:
+The backend compiles and invokes GoldenDict-ng's complete file-backed local
+factory set at the pinned commit, in upstream load order:
 
-- MDict `.mdx` with `.mdd`/numbered MDD volumes and local sidecars
-- ABBYY Lingvo `.dsl` and `.dsl.dz` with `.files` resources
-- StarDict `.ifo` bundles with plain/gzipped index and dictionary data, synonyms,
-  and `res/` resources
+- BGL, StarDict, LSA, DSL, DictD, XDXF, SDict, and Aard
+- ZipSounds, MDict/MDX, GLS, SLOB, ZIM, and EPWING
 
-The default runtime uses GoldenDict-ng's own C++ format factories behind the
-stable REST contract. A Python-reader image supports the same primary formats
-as a portability and failure-isolation fallback; its narrower compatibility
-limits are documented in [backend/README.md](backend/README.md).
+Companion files and resources are interpreted by the original GoldenDict-ng
+C++ implementations. The FastAPI process is only the stable HTTP/protocol
+gateway; it contains no Python dictionary readers and does not parse a file
+when the native worker fails or declines it.
 
 The frontend bundles GoldenDict-ng's complete base article stylesheet, so its
 format-specific article classes remain available even as more backend adapters
@@ -51,10 +50,10 @@ GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
 
 Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
-container and npm package version and defaults to `0.1.7`; for example:
+container and npm package version and defaults to `0.1.8`; for example:
 
 ```bash
-GOLDENDICT_RELEASE=0.1.7 \
+GOLDENDICT_RELEASE=0.1.8 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \
   docker compose -f compose.published.yaml up --build
 ```
@@ -69,7 +68,7 @@ the selected `GOLDENDICT_RELEASE`.
 If a dictionary header renders but its article falls back to plain browser
 headings and bullet lists, the lookup succeeded but one or more dictionary
 sidecars did not. Check the browser Network panel for the exact nested resource
-routes; each must return its asset rather than a proxy's HTML fallback:
+routes; each must return its asset rather than a proxy's HTML error page:
 
 ```text
 /api/v1/dictionaries/<id>/resources/<dictionary>.css
@@ -83,7 +82,7 @@ proxy must forward the complete `/api/*` path, must not impose
 opaque-origin sandbox. Confirm the deployed backend with
 `GET /api/v1/health` (`version` should match `GOLDENDICT_RELEASE`).
 The demo changes the article state to `error` and displays the failed stylesheet
-or script URL instead of silently labelling this fallback rendering `Ready`.
+or script URL instead of silently labelling the degraded rendering `Ready`.
 
 ### Build from source
 
@@ -112,39 +111,23 @@ GOLDENDICT_DICTIONARY_PATH=/home/ubuntu/speak/examples/dict \
   docker compose up --build
 ```
 
-The default `api` service is a combined FastAPI/native-worker runtime. It keeps
-GoldenDict indices in the `native-indices` volume and sets
-`GOLDENDICT_NATIVE_REQUIRED=true`: health remains unready if the worker fails or
-does not publish a discovered MDX, DSL, or StarDict main file. To build that
-image without starting Compose:
+The default `api` service is the only runtime. It combines the thin FastAPI
+gateway with the GoldenDict-ng worker, keeps native indices in the
+`native-indices` volume, and remains unready if native startup fails. To build
+that image without starting Compose:
 
 ```bash
 make build-backend-native \
   GOLDENDICT_NG_SOURCE=/absolute/path/to/goldendict-ng
 ```
 
-This produces `goldendict-api:native`. The measured Ubuntu 24.04 arm64 image is
-486,239,872 bytes uncompressed; most of that is the Python, Qt, and graphics
-runtime rather than the worker executable.
+This produces `goldendict-api:native`.
 
 The Make target goes through `backend/native/build.sh`. That wrapper supports
 ordinary and linked Git worktrees, verifies the locked commit, and records a
 deterministic dirty flag plus SHA-256 of relevant local GoldenDict-ng source
 changes in the worker's ready metadata. Intentional local patches remain
 buildable; set `GOLDENDICT_NG_REQUIRE_CLEAN=ON` for a strict release/CI build.
-
-For comparison or environments that cannot ship Qt, start the opt-in
-`python-fallback` profile. It exposes the Python-reader API on port 8081 and
-does not start a native worker:
-
-```bash
-docker compose --profile python-fallback up --build api-python
-```
-
-In a custom FastAPI deployment, leaving `GOLDENDICT_NATIVE_REQUIRED=false`
-allows a configured worker to be preferred while Python adapters cover files it
-does not publish. Omitting `GOLDENDICT_NATIVE_WORKER` selects Python readers for
-the whole startup scan.
 
 To develop the browser packages without Compose:
 
@@ -168,9 +151,9 @@ GET    /api/v1/suggestions?prefix=hel&limit=20
 GET    /api/v1/dictionaries/{id}/resources/{path}
 ```
 
-The default catalog is immutable after startup. An opt-in
-`GOLDENDICT_RUNTIME_CATALOG_MUTATIONS=true` adds server-path load and in-memory
-unload routes; it never enables byte upload or deletes dictionary files.
+The catalog is immutable after startup. Changing mounted dictionaries requires
+restarting the service so GoldenDict-ng can rebuild and atomically publish the
+catalog.
 
 ```bash
 curl http://localhost:8080/api/v1/dictionaries
@@ -215,12 +198,13 @@ than escaping to the origin root.
 
 The component emits cancelable lookup/media/external-link events and state,
 active-article, and collapse events. Dictionary content is rendered in a
-sandboxed, opaque-origin iframe. Scripts are stripped by default; consumers can
-opt into the more compatible `sandboxed` script policy without granting the
-dictionary same-origin access to the host page. Layout is a separate choice:
+sandboxed, opaque-origin iframe. The default `sandboxed` script policy retains
+GoldenDict-ng script-dependent behavior without granting dictionary content
+same-origin access to the host page. Consumers can choose `scriptPolicy =
+"none"` as a strict script-removal policy. Layout is a separate choice:
 `layoutMode = "fidelity"` preserves GoldenDict-ng and dictionary-authored
-geometry, while the default `"responsive"` mode adds fixed-width browser
-safeguards for narrow containers.
+geometry and is the default. `"responsive"` is an explicit opt-in that adds
+fixed-width browser safeguards for narrow containers.
 
 For a trusted local dictionary that depends on sidecars and should retain the
 native GoldenDict cascade:
@@ -233,16 +217,14 @@ view.scriptPolicy = "sandboxed";
 For example, OALDPE articles retain their `bres://.../oaldpe.js` and
 `bres://.../oaldpe-jquery.js` script references. The REST resource route serves
 those local sidecars as `text/javascript` with
-`X-Content-Type-Options: nosniff`. This does not execute them automatically:
-the frontend's safe default removes dictionary scripts and inline handlers.
-Execution requires the consumer to choose `scriptPolicy = "sandboxed"`, and is
-still confined to the opaque-origin iframe. Matching GoldenDict-ng layout also
-requires `layoutMode = "fidelity"`; JavaScript permission alone does not alter
-the CSS cascade. Such an iframe sends an Origin of `null` for XHR/fetch. The
-bundled demo chooses sandboxed scripts plus fidelity layout for its locally
-mounted dictionaries so its default rendering matches GoldenDict-ng; the
-reusable component still defaults to script removal and responsive layout. The
-Compose demo permits `http://localhost:5173,null` so opted-in dictionary
+`X-Content-Type-Options: nosniff`. They execute by default, confined to the
+opaque-origin iframe. Set `scriptPolicy = "none"` to remove dictionary scripts
+and inline handlers. Matching GoldenDict-ng layout also requires `layoutMode =
+"fidelity"`; JavaScript permission alone does not alter the CSS cascade. Such
+an iframe sends an Origin of `null` for XHR/fetch. The bundled demo and reusable
+component both default to sandboxed scripts plus fidelity layout so their
+locally mounted dictionaries match GoldenDict-ng. The Compose demo permits
+`http://localhost:5173,null` so sandboxed dictionary
 JavaScript can request its resources; enable the `null` CORS origin only in
 deployments that intentionally use this opaque-origin sandbox behavior. The
 backend's general default CORS setting remains unchanged.
@@ -265,9 +247,9 @@ npm run build
 ```
 
 Handwritten browser adapters are outside the generated/vendor boundary. The
-native backend compiles a narrow, explicit source set from the same pinned
-checkout and exposes it through a version-neutral subprocess protocol; the
-Python readers remain behind the same REST adapter contract. See the
+native backend compiles an explicit manifest containing every local file-format
+factory from the same pinned checkout and exposes it through a version-neutral
+subprocess protocol. See the
 [native worker guide](backend/native/README.md) and
 [backend/upstream-compatibility.yaml](backend/upstream-compatibility.yaml).
 See
@@ -281,13 +263,7 @@ make verify
 ```
 
 That runs frontend checksum contracts, package tests, type checking,
-production package/demo builds, and the backend's Dockerized test suite. To add
-the real local MDX/MDD gate:
-
-```bash
-make test-backend-real \
-  GOLDENDICT_TEST_DICTIONARY_PATH=/home/ubuntu/speak/examples/dict/oaldpe.mdx
-```
+production package/demo builds, and the gateway's Dockerized test suite.
 
 After building `goldendict-api:native`, the native protocol smoke test generates
 tiny DSL and StarDict bundles locally, then verifies startup metadata and
@@ -331,7 +307,7 @@ scale rather than hard-coding a dictionary zoom into the renderer.
 The [GitHub Actions workflow](.github/workflows/ci-release.yml) runs on pull
 requests, pushes to `main`, and manual dispatches. It type-checks, tests, and
 builds the frontend package and demo; runs the deterministic Chromium fidelity
-and consecutive-lookup gate; runs the Dockerized Python API suite; and builds
+and consecutive-lookup gate; runs the Dockerized REST-gateway suite; and builds
 and smoke-tests the combined native image on native `linux/amd64` and
 `linux/arm64` GitHub runners. The GoldenDict-ng repository and commit must agree
 across the native lock, backend compatibility map, and frontend asset manifest,

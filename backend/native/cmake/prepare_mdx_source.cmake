@@ -1,7 +1,7 @@
 # Create the one patched upstream translation unit used by the headless worker.
 #
 # GoldenDict-ng's desktop process trusts dictionary directories. Its MDX local
-# resource fallback consequently concatenates the requested name and follows
+# resource path consequently concatenates the requested name and follows
 # MDD @@@LINK redirects without a canonical-path boundary. That trust model is
 # not suitable for a network resource endpoint. Keep this hardening as an exact
 # source transformation: an upstream edit to the affected function fails at

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def _to_camel(value: str) -> str:
@@ -16,21 +16,6 @@ class APIModel(BaseModel):
         populate_by_name=True,
         extra="forbid",
     )
-
-
-class LoadDictionaryRequest(APIModel):
-    path: str = Field(min_length=1, max_length=4096)
-    name: str | None = Field(default=None, min_length=1, max_length=256)
-
-    @field_validator("path", "name")
-    @classmethod
-    def strip_nonempty(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        stripped = value.strip()
-        if not stripped:
-            raise ValueError("must not be blank")
-        return stripped
 
 
 class DictionaryInfo(APIModel):

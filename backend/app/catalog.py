@@ -34,10 +34,6 @@ class DictionaryCatalog:
                 )
             return CatalogSnapshot(generation=self._generation, adapters=adapters)
 
-    def missing_ids(self, dictionary_ids: list[str]) -> list[str]:
-        with self._lock:
-            return [dictionary_id for dictionary_id in dictionary_ids if dictionary_id not in self._by_id]
-
     def select(self, dictionary_ids: list[str]) -> tuple[CatalogSnapshot, list[str]]:
         with self._lock:
             missing = [dictionary_id for dictionary_id in dictionary_ids if dictionary_id not in self._by_id]
@@ -60,22 +56,3 @@ class DictionaryCatalog:
             self._by_id = replacement
             self._generation += 1
             return previous
-
-    def upsert(self, adapter: DictionaryAdapter) -> DictionaryAdapter | None:
-        with self._lock:
-            replacement = dict(self._by_id)
-            previous = replacement.get(adapter.metadata.dictionary_id)
-            replacement[adapter.metadata.dictionary_id] = adapter
-            self._by_id = replacement
-            self._generation += 1
-            return previous
-
-    def unload(self, dictionary_id: str) -> DictionaryAdapter | None:
-        with self._lock:
-            if dictionary_id not in self._by_id:
-                return None
-            replacement = dict(self._by_id)
-            removed = replacement.pop(dictionary_id)
-            self._by_id = replacement
-            self._generation += 1
-            return removed

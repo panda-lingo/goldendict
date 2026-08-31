@@ -30,9 +30,9 @@ def normalize_resource_key(
     """Return a safe, slash-separated dictionary resource key.
 
     URL decoding happens exactly once. Absolute-looking MDict keys are allowed,
-    but dot segments, controls and URI schemes are rejected. Python readers use
-    case-folded indexes by default; the native GoldenDict-ng reader opts out so
-    case-sensitive filesystem sidecars retain their exact names.
+    but dot segments, controls and URI schemes are rejected. Callers may request
+    case folding, while the GoldenDict-ng adapter opts out so case-sensitive
+    filesystem sidecars retain their exact names.
     """
 
     text = display_text(value, "utf-8")

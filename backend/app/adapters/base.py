@@ -1,10 +1,9 @@
-"""Dictionary reader protocol shared by every on-disk format adapter."""
+"""Format-neutral boundary around dictionaries owned by GoldenDict-ng."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import hashlib
 from pathlib import Path
 from typing import Final
 
@@ -50,11 +49,10 @@ class DictionaryResource:
 class DictionaryAdapter(ABC):
     """Immutable, thread-safe dictionary instance held by the catalog.
 
-    Implementations may lazily read records from disk. Calls can happen from
-    multiple worker threads and therefore must not expose mutable parser state.
-    Adapters must not depend on a persistent shared file handle. ``close()`` is
-    called just after a copy-on-write catalog swap and must be idempotent and
-    safe while an older request snapshot is finishing a lookup.
+    The runtime implementation delegates to the shared native worker. Calls can
+    happen from multiple gateway threads, and ``close()`` is called just after
+    a copy-on-write catalog swap, so it must remain safe while an older request
+    snapshot finishes a lookup.
     """
 
     metadata: DictionaryMetadata
@@ -73,15 +71,3 @@ class DictionaryAdapter(ABC):
 
     def close(self) -> None:
         """Release discardable caches after an atomic catalog swap."""
-
-
-class UnsupportedDictionaryFormat(ValueError):
-    """Raised when no adapter owns a supplied main dictionary file."""
-
-
-def stable_dictionary_id(format_name: str, main_path: Path) -> str:
-    """Derive a restart-stable ID without hashing an entire large dictionary."""
-
-    canonical = main_path.resolve(strict=True)
-    identity = f"goldendict-rest:v1\0{format_name.casefold()}\0{canonical}"
-    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]

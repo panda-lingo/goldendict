@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 3
 goldendictNg:
   repository: https://github.com/xiaoyifang/goldendict-ng
   commit: 5ad66765aa423d381025566bff990f7d8007be84
@@ -6,110 +6,147 @@ goldendictNg:
   lockFile: native/upstream.lock
   provenance:
     script: native/provenance.sh
+    inputs:
+      - src
+      - icons
     startupFields:
       - upstreamCommit
       - upstreamDirty
       - upstreamDiffSha256
 nativeBridge:
-  protocol: JSON-lines worker behind the stable REST gateway
-  factories:
-    - Mdx::makeDictionaries
-    - Dsl::makeDictionaries
-    - Stardict::makeDictionaries
+  protocol: JSON-lines worker behind the stable read-only REST gateway
   sourceManifest: native/CMakeLists.txt
+  factoriesInUpstreamOrder:
+    - Bgl::makeDictionaries
+    - Stardict::makeDictionaries
+    - Lsa::makeDictionaries
+    - Dsl::makeDictionaries
+    - DictdFiles::makeDictionaries
+    - Xdxf::makeDictionaries
+    - Sdict::makeDictionaries
+    - Aard::makeDictionaries
+    - ZipSounds::makeDictionaries
+    - Mdx::makeDictionaries
+    - Gls::makeDictionaries
+    - Slob::makeDictionaries
+    - Zim::makeDictionaries
+    - Epwing::makeDictionaries
+  supportedFormats:
+    - bgl
+    - stardict
+    - lsa
+    - dsl
+    - dictd
+    - xdxf
+    - sdict
+    - aard
+    - zipsounds
+    - mdx
+    - gls
+    - slob
+    - zim
+    - epwing
   adapter:
     - app/adapters/native.py
     - app/service.py
   shims:
     - native/shims
     - native/src/headless_shims.cc
-  note: GoldenDict-ng loadDictionaries is a desktop/UI orchestrator and is intentionally not linked
-pythonFallback:
-  imageTarget: backend/Dockerfile runtime
-  readmdict:
-    package: readmdict
-    version: 0.1.1
-    note: app/adapters/mdict.py intentionally integrates with its private key and record-block indexes
+  excludedProviders:
+    reason: configuration-backed providers rather than local file formats
+    values:
+      - sound directories
+      - Hunspell morphology
+      - network and website dictionaries
+      - programs and voice engines
+      - transliterations
 mappings:
   - upstream:
+      - src/dict/loaddictionaries.cc
       - src/dict/dictionary.hh
       - src/dict/dictionary.cc
-    native:
+      - src/metadata.cc
+    local:
+      - native/CMakeLists.txt
       - native/src/main.cc
       - app/adapters/native.py
+      - app/service.py
     behavior:
-      - exact article lookup
-      - prefix suggestions
-      - binary resources
-      - canonical GoldenDict-ng article HTML passthrough
+      - complete file-backed factory order and runtime format manifest
+      - recursive path filters and directory/factory catalog ordering
+      - canonical article lookup and prefix matching
+      - cross-dictionary synonym-headword coordination before article lookup
+      - per-dictionary query errors retained beside successful articles
+      - deferred reader initialization
+      - adjacent metadata.toml display-name and FTS overrides
+      - one batched protocol lookup with concurrent selected-dictionary requests
+      - binary resources and upstream dictionary icons
   - upstream:
       - src/dict/mdx.cc
       - src/dict/mdictparser.cc
-    native:
-      - native/CMakeLists.txt
+    local:
       - native/cmake/prepare_mdx_source.cmake
       - native/src/resource_guard.hh
-      - native/src/main.cc
-      - native/tests/protocol_smoke.py
       - native/tests/resource_guard_test.cc
-    fallback:
-      - app/adapters/mdict.py
-      - app/transform.py
     behavior:
       - MDX indexing and rendering
-      - companion MDD and local sidecar resources
-      - canonical local-resource containment after MDD redirects
-      - entry, audio, video, and internal-lookup links
+      - MDD volumes and case-sensitive local sidecars
+      - canonical containment after every MDD redirect
   - upstream:
+      - src/dict/aard.cc
+      - src/dict/bgl.cc
+      - src/dict/dictdfiles.cc
       - src/dict/dsl.cc
-      - src/dict/dsl_details.cc
-    native:
-      - native/CMakeLists.txt
-      - native/src/main.cc
-      - native/tests/protocol_smoke.py
-    fallback:
-      - app/adapters/dsl.py
-      - tests/test_dsl_adapter.py
-    behavior:
-      - DSL and dictzip-compressed DSL indexing
-      - DSL HTML rendering and companion resources
-  - upstream:
+      - src/dict/epwing.cc
+      - src/dict/gls.cc
+      - src/dict/lsa.cc
+      - src/dict/sdict.cc
+      - src/dict/slob.cc
       - src/dict/stardict.cc
-      - src/dict/xdxf2html.cc
-    native:
+      - src/dict/xdxf.cc
+      - src/dict/zim.cc
+      - src/dict/zipsounds.cc
+    local:
       - native/CMakeLists.txt
       - native/src/main.cc
       - native/tests/protocol_smoke.py
-    fallback:
-      - app/adapters/stardict.py
-      - tests/test_stardict_adapter.py
     behavior:
-      - StarDict bundle and synonym indexing
-      - typed record and XDXF-to-HTML rendering
+      - original upstream format parsing, indices, HTML, resources, and matching
   - upstream:
-      - src/dict/tiff.cc
-      - src/dict/xdxf.cc
-    native:
-      - native/src/headless_shims.cc
+      - resources.qrc
+      - icons
+      - src/common/dictionary_icon_name.cc
+      - src/tiff.cc
+      - src/article_netmgr.cc
+    local:
+      - native/src/main.cc
+      - app/adapters/native.py
+      - packages/frontend/src/renderer/article-document.ts
     behavior:
-      - headless TIFF-to-PNG conversion without QApplication
-      - minimal XDXF language lookup required by enabled factories
+      - custom and format-default Dictionary::getIcon output served as PNG
+      - upstream-generated MDX abbreviations and TIFF conversion
+      - gico-compatible dictionary header rendering
   - upstream:
       - src/article_maker.cc
       - src/scripts/gd-builtin.js
       - src/stylesheets/article-style.css
+      - src/stylesheets/article-style-print.css
+      - src/stylesheets/article-style-st-*.css
     local:
       - packages/frontend
     behavior:
-      - GoldenDict article shell, URL routing, interaction, styles, and sandbox policy
+      - canonical article shell classes and language attributes
+      - exact pinned base, print, and display-preset CSS
+      - fidelity layout as the default cascade
+      - URL routing, collapse/active behavior, and opaque-frame script policy
 upgradeProcedure:
-  - check out the candidate GoldenDict-ng commit in a clean or intentionally modified worktree
-  - update native/upstream.lock and the frontend compatibility manifest only after reviewing the candidate
-  - build through native/build.sh so commit, dirty state, and relevant source-diff digest are attested
-  - resolve selected-source, interface, shim, Qt, and library drift explicitly; never copy parser implementations locally
-  - run native/tests/protocol_smoke.py and assert DSL/StarDict metadata, mainPath, article format, lookup, and suggestions
-  - run a real MDX/MDD fixture and verify lookup, bres/gdlookup/gdau links, CSS, binary media, and local JavaScript sidecars
-  - run the FastAPI suite and combined native REST image with GOLDENDICT_NATIVE_REQUIRED=true
-  - verify health/startupErrors, immutable OpenAPI routes, MIME/nosniff/ETag, traversal rejection, and worker lifecycle
-  - run frontend compatibility checks, scriptPolicy tests, type checking, and production package/demo builds
+  - check out the candidate GoldenDict-ng commit in a clean worktree
+  - update native/upstream.lock and the frontend compatibility manifest only after review
+  - build through native/build.sh so all worker inputs and provenance are attested
+  - resolve factory, selected-source, shim, Qt, EB, ZIM, Vorbis, and compression-library drift explicitly
+  - assert the complete supportedFormats ready contract and compile every factory
+  - run representative fixtures for every available format and companion-resource form
+  - verify batched lookup, prefix suggestions, native icons, and resource containment
+  - run the immutable REST contract, MIME/cache/traversal, lifecycle, and health tests
+  - run frontend checksum, unit, type, production-build, and real-browser fidelity gates
   - record runtime dependency and image-size changes with the lock/source/shim update

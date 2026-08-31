@@ -103,7 +103,7 @@ describe("DictionaryClient", () => {
         ),
     });
 
-    await expect(client.loadDictionary({ path: "/bad.dict" })).rejects.toMatchObject({
+    await expect(client.listDictionaries()).rejects.toMatchObject({
       name: "DictionaryApiError",
       status: 422,
       message: "Unsupported dictionary",

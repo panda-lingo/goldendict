@@ -138,8 +138,8 @@ export function resolveResourceUrl(
       : (resolveBuiltinAsset("qrc:///icons/document.png") ?? "");
   }
   const path = normalizedResourcePath(url);
-  const fallbackBase = `${context.apiBaseUrl.replace(/\/+$/, "")}/dictionaries/${encodeURIComponent(dictionaryId)}/resources`;
-  const resolved = joinUrl(contextResourceBase(context) ?? fallbackBase, path);
+  const defaultBase = `${context.apiBaseUrl.replace(/\/+$/, "")}/dictionaries/${encodeURIComponent(dictionaryId)}/resources`;
+  const resolved = joinUrl(contextResourceBase(context) ?? defaultBase, path);
   return url.hash ? `${resolved}${url.hash}` : resolved;
 }
 

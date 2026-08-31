@@ -177,9 +177,9 @@ export class GoldenDictView extends HTMLElement {
   }
 
   get scriptPolicy(): ScriptPolicy {
-    return this.getAttribute("script-policy") === "sandboxed"
-      ? "sandboxed"
-      : "none";
+    return this.getAttribute("script-policy") === "none"
+      ? "none"
+      : "sandboxed";
   }
 
   set scriptPolicy(value: ScriptPolicy) {
@@ -187,9 +187,9 @@ export class GoldenDictView extends HTMLElement {
   }
 
   get layoutMode(): ArticleLayoutMode {
-    return this.getAttribute("layout-mode") === "fidelity"
-      ? "fidelity"
-      : "responsive";
+    return this.getAttribute("layout-mode") === "responsive"
+      ? "responsive"
+      : "fidelity";
   }
 
   set layoutMode(value: ArticleLayoutMode) {

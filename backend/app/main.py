@@ -21,7 +21,6 @@ from .models import (
     ErrorBody,
     ErrorResponse,
     HealthResponse,
-    LoadDictionaryRequest,
     LookupResponse,
     SuggestionsResponse,
 )
@@ -64,12 +63,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.dictionary_service = service
     origins = list(resolved_settings.cors_origins or ("*",))
-    mutation_methods = ["POST", "DELETE"] if resolved_settings.runtime_catalog_mutations else []
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials="*" not in origins,
-        allow_methods=["GET", "OPTIONS", *mutation_methods],
+        allow_methods=["GET", "OPTIONS"],
         allow_headers=["Accept", "Content-Type", "If-None-Match", "Range"],
         expose_headers=["Accept-Ranges", "Cache-Control", "Content-Range", "ETag"],
     )
@@ -142,28 +140,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get(f"{API_PREFIX}/dictionaries", response_model=list[DictionaryInfo], tags=["dictionaries"])
     async def dictionaries() -> list[DictionaryInfo]:
         return service.dictionaries()
-
-    if resolved_settings.runtime_catalog_mutations:
-
-        @app.post(
-            f"{API_PREFIX}/dictionaries/load",
-            response_model=DictionaryInfo,
-            status_code=status.HTTP_201_CREATED,
-            tags=["dictionaries"],
-        )
-        async def load_dictionary(body: LoadDictionaryRequest) -> DictionaryInfo:
-            return await asyncio.to_thread(service.load, body.path, body.name)
-
-        @app.delete(
-            f"{API_PREFIX}/dictionaries/{{dictionary_id}}",
-            status_code=status.HTTP_204_NO_CONTENT,
-            tags=["dictionaries"],
-        )
-        async def unload_dictionary(
-            dictionary_id: Annotated[str, Path(min_length=1, max_length=128)],
-        ) -> Response:
-            await asyncio.to_thread(service.unload, dictionary_id)
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @app.get(f"{API_PREFIX}/lookup/{{word:path}}", response_model=LookupResponse, tags=["lookup"])
     async def lookup(

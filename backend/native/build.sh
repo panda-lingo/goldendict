@@ -20,9 +20,19 @@ if [ "$actual_commit" != "$expected_commit" ]; then
   exit 1
 fi
 
+# The worker consumes only src/ and icons/. Stage those attested inputs in a
+# disposable named context so Docker does not copy a checkout's potentially
+# large .git object database into every build.
+upstream_context=$(mktemp -d)
+cleanup() {
+  rm -rf -- "$upstream_context"
+}
+trap cleanup EXIT HUP INT TERM
+cp -a "$upstream_dir/src" "$upstream_dir/icons" "$upstream_context/"
+
 set -- docker build \
   --file "$dockerfile" \
-  --build-context "goldendict-ng=$upstream_dir" \
+  --build-context "goldendict-ng=$upstream_context" \
   --build-arg "GOLDENDICT_NG_COMMIT=$expected_commit" \
   --build-arg "GOLDENDICT_NG_DIRTY=$upstream_dirty" \
   --build-arg "GOLDENDICT_NG_DIFF_SHA256=$diff_sha256" \

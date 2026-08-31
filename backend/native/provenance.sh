@@ -12,22 +12,42 @@ fi
 actual_commit=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 temporary_dir=$(mktemp -d)
 temporary_index="$temporary_dir/index"
+temporary_objects="$temporary_dir/objects"
 diff_file="$temporary_dir/relevant-source.diff"
 cleanup() {
   rm -rf -- "$temporary_dir"
 }
 trap cleanup EXIT HUP INT TERM
 
-# Construct a disposable index for the effective src/ working tree. Compared
-# with HEAD, this captures tracked modifications/deletions and every untracked
-# source file (including ignored generated headers) without modifying the
+# A read-only BuildKit source mount also makes its Git object database
+# read-only.  Point writes from `git add` at the disposable directory while
+# retaining the checkout's object database as a read-only alternate.
+source_objects=$(git -C "$upstream_dir" \
+  rev-parse --path-format=absolute --git-path objects)
+mkdir -p "$temporary_objects"
+
+# Construct a disposable index for every upstream input compiled or embedded
+# by the worker. Compared with HEAD, this captures tracked modifications,
+# deletions, and untracked generated sources/assets without modifying the
 # developer's real Git index.
-GIT_INDEX_FILE="$temporary_index" git -C "$upstream_dir" read-tree HEAD
-GIT_INDEX_FILE="$temporary_index" git -C "$upstream_dir" add -A -f -- src
-LC_ALL=C GIT_INDEX_FILE="$temporary_index" git -C "$upstream_dir" \
+GIT_INDEX_FILE="$temporary_index" \
+GIT_OBJECT_DIRECTORY="$temporary_objects" \
+GIT_ALTERNATE_OBJECT_DIRECTORIES="$source_objects" \
+  git -C "$upstream_dir" read-tree HEAD
+GIT_INDEX_FILE="$temporary_index" \
+GIT_OBJECT_DIRECTORY="$temporary_objects" \
+GIT_ALTERNATE_OBJECT_DIRECTORIES="$source_objects" \
+  git -C "$upstream_dir" add -A -f -- \
+  src icons
+LC_ALL=C \
+GIT_INDEX_FILE="$temporary_index" \
+GIT_OBJECT_DIRECTORY="$temporary_objects" \
+GIT_ALTERNATE_OBJECT_DIRECTORIES="$source_objects" \
+  git -C "$upstream_dir" \
   -c core.quotepath=false \
   diff --cached --binary --full-index --no-ext-diff --no-textconv --no-renames \
-  --src-prefix=a/ --dst-prefix=b/ HEAD -- src > "$diff_file"
+  --src-prefix=a/ --dst-prefix=b/ HEAD -- \
+  src icons > "$diff_file"
 
 diff_sha256=$(sha256sum "$diff_file" | awk '{print $1}')
 if [ -s "$diff_file" ]; then

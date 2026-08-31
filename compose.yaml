@@ -15,9 +15,7 @@ services:
       GOLDENDICT_DICTIONARY_ROOTS: /dictionaries
       GOLDENDICT_CORS_ORIGINS: "http://localhost:5173,null"
       GOLDENDICT_NATIVE_INDEX_DIR: /var/lib/goldendict/indices
-      GOLDENDICT_NATIVE_REQUIRED: "true"
       GOLDENDICT_NATIVE_WORKER: /usr/local/bin/goldendict-native-worker
-      GOLDENDICT_RUNTIME_CATALOG_MUTATIONS: "false"
     ports:
       - "8080:8080"
     volumes:
@@ -28,25 +26,6 @@ services:
       - type: volume
         source: native-indices
         target: /var/lib/goldendict/indices
-    restart: unless-stopped
-
-  api-python:
-    image: goldendict-api:python
-    profiles: ["python-fallback"]
-    build:
-      context: ./backend
-      target: runtime
-    environment:
-      GOLDENDICT_DICTIONARY_ROOTS: /dictionaries
-      GOLDENDICT_CORS_ORIGINS: "http://localhost:5173,null"
-      GOLDENDICT_RUNTIME_CATALOG_MUTATIONS: "false"
-    ports:
-      - "8081:8080"
-    volumes:
-      - type: bind
-        source: ${GOLDENDICT_DICTIONARY_PATH:-./dictionaries}
-        target: /dictionaries
-        read_only: true
     restart: unless-stopped
 
   demo:

@@ -31,6 +31,22 @@ from .base import (
 logger = logging.getLogger(__name__)
 _EOF: Final = object()
 _FORMAT_NAMES: Final = {"mdx": "mdict"}
+SUPPORTED_LOCAL_FORMATS: Final = (
+    "bgl",
+    "stardict",
+    "lsa",
+    "dsl",
+    "dictd",
+    "xdxf",
+    "sdict",
+    "aard",
+    "zipsounds",
+    "mdx",
+    "gls",
+    "slob",
+    "zim",
+    "epwing",
+)
 
 
 class NativeWorkerError(RuntimeError):
@@ -55,6 +71,18 @@ class NativeDictionaryDescriptor:
     source_language: str | None = None
     target_language: str | None = None
     icon_resource_path: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NativeLookupArticle:
+    dictionary_id: str
+    html: str
+
+
+@dataclass(frozen=True, slots=True)
+class NativeLookupResult:
+    articles: tuple[NativeLookupArticle, ...]
+    suggestions: tuple[str, ...]
 
 
 class NativeWorkerClient:
@@ -101,7 +129,10 @@ class NativeWorkerClient:
         self._request_lock = RLock()
         self._closed = False
         self._next_id = 1
-        self._request_timeout_seconds = request_timeout_seconds
+        # The worker owns the configured operation deadline. Leave a small
+        # transport grace period for it to serialize and flush a timeout/error
+        # response instead of racing the gateway's queue deadline.
+        self._request_timeout_seconds = request_timeout_seconds + 1.0
         assert self._process.stdout is not None
         assert self._process.stderr is not None
         self._stdout_thread = Thread(
@@ -124,10 +155,23 @@ class NativeWorkerClient:
             if ready.get("event") != "ready":
                 raise NativeWorkerError("native worker did not send a ready event")
             self.upstream_commit = _required_string(ready, "upstreamCommit")
+            raw_formats = ready.get("supportedFormats")
+            if (
+                not isinstance(raw_formats, list)
+                or any(not isinstance(value, str) for value in raw_formats)
+                or tuple(raw_formats) != SUPPORTED_LOCAL_FORMATS
+            ):
+                raise NativeWorkerError(
+                    "native worker does not provide the complete GoldenDict-ng local format set"
+                )
+            self.supported_formats = tuple(raw_formats)
             raw_dictionaries = ready.get("dictionaries")
             if not isinstance(raw_dictionaries, list):
                 raise NativeWorkerError("native ready event has no dictionary list")
-            self.dictionaries = tuple(_descriptor(value) for value in raw_dictionaries)
+            dictionaries = tuple(_descriptor(value) for value in raw_dictionaries)
+            if any(value.format not in SUPPORTED_LOCAL_FORMATS for value in dictionaries):
+                raise NativeWorkerError("native worker published an unknown dictionary format")
+            self.dictionaries = dictionaries
         except Exception:
             self.close()
             raise
@@ -159,6 +203,62 @@ class NativeWorkerClient:
                     str(raw_error.get("message") or "GoldenDict-ng request failed"),
                 )
             return response.get("result")
+
+    def lookup_batch(
+        self,
+        word: str,
+        dictionary_ids: list[str],
+        suggestion_limit: int,
+    ) -> NativeLookupResult:
+        """Run one native lookup across the selected GoldenDict-ng catalog."""
+
+        result = self.request(
+            "lookup",
+            word=word,
+            dictionaryIds=dictionary_ids,
+            suggestionLimit=min(max(suggestion_limit, 0), 100),
+        )
+        if not isinstance(result, dict):
+            raise NativeWorkerError("native lookup returned a malformed result")
+        raw_articles = result.get("articles")
+        raw_suggestions = result.get("suggestions")
+        if not isinstance(raw_articles, list) or not isinstance(raw_suggestions, list):
+            raise NativeWorkerError("native lookup returned malformed articles or suggestions")
+        articles: list[NativeLookupArticle] = []
+        for value in raw_articles:
+            if not isinstance(value, dict):
+                raise NativeWorkerError("native lookup article is not an object")
+            articles.append(
+                NativeLookupArticle(
+                    dictionary_id=_required_string(value, "dictionaryId"),
+                    html=_string(value, "html"),
+                )
+            )
+        if any(not isinstance(value, str) for value in raw_suggestions):
+            raise NativeWorkerError("native lookup suggestions contain a non-string value")
+        return NativeLookupResult(
+            articles=tuple(articles),
+            suggestions=tuple(raw_suggestions),
+        )
+
+    def suggestions_batch(
+        self,
+        prefix: str,
+        dictionary_ids: list[str],
+        limit: int,
+    ) -> tuple[str, ...]:
+        result = self.request(
+            "suggestions",
+            prefix=prefix,
+            dictionaryIds=dictionary_ids,
+            limit=min(max(limit, 1), 100),
+        )
+        if not isinstance(result, dict) or not isinstance(result.get("suggestions"), list):
+            raise NativeWorkerError("native suggestions returned a malformed result")
+        values = result["suggestions"]
+        if any(not isinstance(value, str) for value in values):
+            raise NativeWorkerError("native suggestions contain a non-string value")
+        return tuple(values)
 
     def close(self) -> None:
         with self._request_lock:
@@ -252,41 +352,32 @@ class NativeDictionaryAdapter(DictionaryAdapter):
             icon_resource_path=descriptor.icon_resource_path,
         )
 
+    @property
+    def client(self) -> NativeWorkerClient:
+        return self._client
+
     def lookup(self, word: str) -> DictionaryArticle | None:
-        result = self._client.request(
-            "lookup",
-            word=word,
-            dictionaryIds=[self.metadata.dictionary_id],
-        )
-        if not isinstance(result, dict) or not isinstance(result.get("articles"), list):
-            raise NativeWorkerError("native lookup returned a malformed result")
-        for article in result["articles"]:
-            if not isinstance(article, dict):
+        result = self._client.lookup_batch(word, [self.metadata.dictionary_id], 0)
+        for article in result.articles:
+            if article.dictionary_id != self.metadata.dictionary_id:
                 continue
-            if article.get("dictionaryId") != self.metadata.dictionary_id:
-                continue
-            html = article.get("html")
-            if not isinstance(html, str):
-                raise NativeWorkerError("native lookup article has no HTML")
             return DictionaryArticle(
                 # GoldenDict-ng has already produced its canonical article
                 # fragment. The frontend package understands its bres/gdau/
                 # gdlookup schemes without a lossy HTML parse/reserialize pass.
-                html=html,
+                html=article.html,
                 headword=word,
             )
         return None
 
     def suggestions(self, prefix: str, limit: int) -> list[str]:
-        result = self._client.request(
-            "suggestions",
-            prefix=prefix,
-            limit=min(max(limit, 1), 100),
-            dictionaryIds=[self.metadata.dictionary_id],
+        return list(
+            self._client.suggestions_batch(
+                prefix,
+                [self.metadata.dictionary_id],
+                limit,
+            )[:limit]
         )
-        if not isinstance(result, dict) or not isinstance(result.get("suggestions"), list):
-            raise NativeWorkerError("native suggestions returned a malformed result")
-        return [value for value in result["suggestions"] if isinstance(value, str)][:limit]
 
     def resource(self, resource_path: str) -> DictionaryResource | None:
         try:
@@ -373,6 +464,13 @@ def _required_string(value: dict[str, Any], key: str) -> str:
     return result
 
 
+def _string(value: dict[str, Any], key: str) -> str:
+    result = value.get(key)
+    if not isinstance(result, str):
+        raise NativeWorkerError(f"native message has no string {key}")
+    return result
+
+
 def _optional_string(value: object) -> str | None:
     return value if isinstance(value, str) and value else None
 
@@ -400,7 +498,8 @@ def _local_resource_escapes(main_path: Path, resource_key: str) -> bool:
     """
 
     try:
-        root = main_path.parent.resolve(strict=True)
+        resolved_main = main_path.resolve(strict=True)
+        root = resolved_main if resolved_main.is_dir() else resolved_main.parent
         candidate = root.joinpath(*resource_key.split("/"))
         resolved = candidate.resolve(strict=True)
     except FileNotFoundError:

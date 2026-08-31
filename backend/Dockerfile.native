@@ -10,31 +10,50 @@ RUN apt-get update \
       git \
       libbz2-dev \
       libfmt-dev \
+      libeb16-dev \
       liblzma-dev \
       liblzo2-dev \
+      libtomlplusplus-dev \
+      libvorbis-dev \
+      libzim-dev \
       qt6-base-dev \
       qt6-svg-dev \
       zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# These are optional for a normal checkout (CMake recomputes them), but let the
-# build wrapper attest a linked worktree whose .git pointer is outside the
-# Docker named context. Local upstream changes remain buildable and traceable.
+# The build wrapper supplies these for its small staged context. A direct
+# Compose build leaves dirty/digest blank and the build inspects the checkout
+# through a non-persistent bind mount instead. Local changes remain traceable.
+ARG GOLDENDICT_NG_COMMIT=5ad66765aa423d381025566bff990f7d8007be84
 ARG GOLDENDICT_NG_DIRTY=
 ARG GOLDENDICT_NG_DIFF_SHA256=
 ARG GOLDENDICT_NG_REQUIRE_CLEAN=OFF
 
 WORKDIR /src/worker
-COPY native/ ./
-COPY --from=goldendict-ng . /src/goldendict-ng
+COPY native/CMakeLists.txt native/upstream.lock native/provenance.sh ./
+COPY native/cmake ./cmake
+COPY native/shims ./shims
+COPY native/src ./src
+COPY native/tests ./tests
+COPY --from=goldendict-ng src /src/goldendict-ng/src
+COPY --from=goldendict-ng icons /src/goldendict-ng/icons
 
-RUN locked_commit="$(sed -n 's/^commit=//p' upstream.lock)" \
+RUN --mount=type=bind,from=goldendict-ng,source=.,target=/source-context,ro \
+    actual_commit="${GOLDENDICT_NG_COMMIT}" \
+    && actual_dirty="${GOLDENDICT_NG_DIRTY}" \
+    && actual_diff_sha256="${GOLDENDICT_NG_DIFF_SHA256}" \
+    && if [ -z "$actual_dirty" ] || [ -z "$actual_diff_sha256" ]; then \
+         source_provenance="$(sh ./provenance.sh /source-context)" || exit 1; \
+         actual_commit="$(printf '%s\n' "$source_provenance" | sed -n 's/^commit=//p')"; \
+         actual_dirty="$(printf '%s\n' "$source_provenance" | sed -n 's/^dirty=//p')"; \
+         actual_diff_sha256="$(printf '%s\n' "$source_provenance" | sed -n 's/^diff_sha256=//p')"; \
+       fi \
     && cmake -S . -B /build \
       -DCMAKE_BUILD_TYPE=Release \
       -DGOLDENDICT_NG_SOURCE=/src/goldendict-ng \
-      -DGOLDENDICT_NG_COMMIT="${locked_commit}" \
-      -DGOLDENDICT_NG_DIRTY="${GOLDENDICT_NG_DIRTY}" \
-      -DGOLDENDICT_NG_DIFF_SHA256="${GOLDENDICT_NG_DIFF_SHA256}" \
+      -DGOLDENDICT_NG_COMMIT="$actual_commit" \
+      -DGOLDENDICT_NG_DIRTY="$actual_dirty" \
+      -DGOLDENDICT_NG_DIFF_SHA256="$actual_diff_sha256" \
       -DGOLDENDICT_NG_REQUIRE_CLEAN="${GOLDENDICT_NG_REQUIRE_CLEAN}" \
     && cmake --build /build --parallel "$(nproc)" \
     && ctest --test-dir /build --output-on-failure \
@@ -45,9 +64,6 @@ FROM ubuntu:24.04 AS python-environment
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      build-essential \
-      liblzo2-dev \
-      python3-dev \
       python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
@@ -63,14 +79,20 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       libbz2-1.0 \
       libfmt9 \
+      libeb16t64 \
       liblzma5 \
       liblzo2-2 \
       libqt6concurrent6 \
       libqt6core6t64 \
       libqt6gui6 \
+      qt6-qpa-plugins \
+      qt6-image-formats-plugins \
       libqt6svg6 \
       libqt6widgets6 \
       libqt6xml6 \
+      libtomlplusplus3t64 \
+      libvorbisfile3 \
+      libzim8 \
       python3 \
       zlib1g \
     && rm -rf /var/lib/apt/lists/* \
@@ -89,9 +111,7 @@ COPY --chown=goldendict:goldendict app /app/app
 ENV PATH=/opt/venv/bin:$PATH \
     GOLDENDICT_DICTIONARY_ROOTS=/dictionaries \
     GOLDENDICT_NATIVE_INDEX_DIR=/var/lib/goldendict/indices \
-    GOLDENDICT_NATIVE_REQUIRED=true \
     GOLDENDICT_NATIVE_WORKER=/usr/local/bin/goldendict-native-worker \
-    GOLDENDICT_RUNTIME_CATALOG_MUTATIONS=false \
     GOLDENDICT_STARTUP_SCAN=true \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

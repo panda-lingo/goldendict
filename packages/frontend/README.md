@@ -37,28 +37,25 @@ console.log(result.suggestions);
 Importing the package registers `<goldendict-view>` automatically. Call
 `defineGoldendictView("my-dictionary-view")` when a custom tag name is useful.
 
-The component is responsive by default. It fills the width of its containing
-layout, uses container-aware host chrome, and remeasures article height whenever
-its iframe reflows. A separate browser override layer constrains legacy
-fixed-width dictionary media, makes wide tables and preformatted text locally
-scrollable, unwraps common floated wiki panels on narrow screens, and keeps
-article headers usable with coarse pointers. The pinned GoldenDict-ng CSS stays
-unchanged so upstream updates remain straightforward.
+The component fills the width of its containing layout, uses container-aware
+host chrome, and remeasures article height whenever its iframe reflows. Article
+layout defaults to GoldenDict fidelity: the pinned upstream body margin,
+content-box model, dictionary header flow, and dictionary-authored CSS cascade
+remain intact.
 
-For GoldenDict-compatible article geometry, select the fidelity layout. This
-omits the browser override layer so the upstream body margin, content-box model,
-dictionary header flow, and dictionary-authored CSS cascade remain intact.
-Script permission is independent: a dictionary may require both fidelity layout
-and sandboxed sidecar JavaScript.
+The optional responsive mode adds a browser override layer that constrains
+legacy fixed-width media, makes wide tables and preformatted text locally
+scrollable, unwraps common floated wiki panels on narrow screens, and keeps
+article headers usable with coarse pointers. Script permission is independent:
+a dictionary may require both fidelity layout and sandboxed sidecar JavaScript.
 
 ```ts
-view.layoutMode = "fidelity";
+view.layoutMode = "responsive";
 view.scriptPolicy = "sandboxed";
 ```
 
-The default `layoutMode` is `"responsive"`; the bundled demo deliberately uses
-`"fidelity"` so it can be compared directly with GoldenDict-ng. Consumers can
-also set `layout-mode="fidelity"` on the custom element.
+The default `layoutMode` is `"fidelity"`. Consumers can opt into the browser
+safeguards with `layout-mode="responsive"` on the custom element.
 
 Compare at the same CSS viewport, device scale, and GoldenDict zoom: those host
 browser settings still affect physical pixel size and line wrapping.
@@ -81,24 +78,22 @@ it when a particular dictionary requires different behavior. Set
 
 The public API includes:
 
-- `DictionaryClient` for dictionary listing, prefix suggestions, and lookup,
-  plus the backend's explicitly opt-in server-path load operation.
+- `DictionaryClient` for dictionary listing, prefix suggestions, and lookup.
 - `GoldenDictView` and `defineGoldendictView` for framework-independent use.
 - `GoldenDictTheme`, light/dark token presets, and `themeToCss` for branding.
 - `GOLDENDICT_EVENTS` for lookup, active article, collapse, media, external-link,
   dictionary-resource failure, and state notifications.
 - Resource/link helpers for hosts that need to inspect GoldenDict URLs.
 
-Dictionary scripts are removed by default (`scriptPolicy = "none"`). The
-explicit `"sandboxed"` policy retains them inside the iframe, which never gets
-`allow-same-origin`. Lookup, media, and external-link events are cancelable so a
-host application can replace the default navigation behavior.
+Dictionary scripts are retained by default (`scriptPolicy = "sandboxed"`)
+inside the iframe, which never gets `allow-same-origin`. Set the policy to
+`"none"` to remove scripts and inline handlers. Lookup, media, and external-link
+events are cancelable so a host application can replace the default navigation
+behavior.
 
-The bundled demo deliberately selects `"sandboxed"` scripts and `"fidelity"`
-layout for locally mounted dictionaries so script-dependent formats such as
-OALDPE render with their GoldenDict typography, geometry, and interactions.
-These demo choices do not change the component defaults (`"none"` scripts and
-`"responsive"` layout) for consumers.
+The bundled demo and reusable component both default to `"sandboxed"` scripts
+for locally mounted dictionaries, so script-dependent formats such as OALDPE
+retain their interactions. `"fidelity"` is likewise the default layout.
 
 In sandboxed mode, external sidecars such as `bres://.../Dictionary-UI.js` are
 routed through the article's `resourceBaseUrl` without changing filename case.
@@ -108,7 +103,7 @@ compatibility mode is enabled. Classic script element loads do not grant the
 dictionary access to the host document.
 
 Failed external dictionary stylesheets and scripts are not treated as a
-successful render. The component keeps the fallback article visible, changes
+successful render. The component keeps the article visible, changes
 `state` to `"error"`, exposes the failures through `view.resourceErrors`, and
 emits `GOLDENDICT_EVENTS.resourceError` with the failed URL and resource type:
 

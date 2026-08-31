@@ -52,9 +52,10 @@ else()
      AND NOT GOLDENDICT_NG_DIRTY STREQUAL ""
      AND DEFINED GOLDENDICT_NG_DIFF_SHA256
      AND NOT GOLDENDICT_NG_DIFF_SHA256 STREQUAL "")
-    # A linked worktree's .git file can refer outside a Docker named context.
-    # build.sh computed these values against the live worktree immediately
-    # before sending that same directory as the context.
+    # A staged context intentionally omits Git metadata, and a linked
+    # worktree's .git file can refer outside a Docker named context. build.sh
+    # computed these values against the live worktree immediately before
+    # staging the exact src/ and icons/ inputs.
     set(_actual_commit "${GOLDENDICT_NG_COMMIT}")
     set(_actual_dirty "${GOLDENDICT_NG_DIRTY}")
     set(_actual_diff_sha256 "${GOLDENDICT_NG_DIFF_SHA256}")
@@ -101,7 +102,7 @@ set(GOLDENDICT_NG_DIFF_SHA256 "${_actual_diff_sha256}")
 
 if(GOLDENDICT_NG_REQUIRE_CLEAN AND GOLDENDICT_NG_DIRTY STREQUAL "true")
   message(FATAL_ERROR
-    "GoldenDict-ng has local src/ changes (${GOLDENDICT_NG_DIFF_SHA256}); "
+    "GoldenDict-ng has local worker-input changes (${GOLDENDICT_NG_DIFF_SHA256}); "
     "GOLDENDICT_NG_REQUIRE_CLEAN is enabled")
 endif()
 

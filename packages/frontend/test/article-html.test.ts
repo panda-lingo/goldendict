@@ -83,7 +83,7 @@ describe("prepareArticleHtml", () => {
     );
   });
 
-  it("rewrites custom resources and removes dictionary scripts and event handlers by default", () => {
+  it("rewrites custom resources and removes scripts under the strict none policy", () => {
     const html = prepareArticleHtml(
       article(
         '<img src="bres://dict-1/image.png" onerror="alert(1)"><script>alert(1)</script>',
@@ -99,7 +99,7 @@ describe("prepareArticleHtml", () => {
     expect(html).not.toContain("<script");
   });
 
-  it("retains and routes local dictionary scripts only for the explicit sandboxed policy", () => {
+  it("retains and routes local dictionary scripts under the sandboxed policy", () => {
     const source =
       '<script src="bres://dict-1/Dictionary-UI.js"></script><script>globalThis.fixture=true</script>';
     const html = prepareArticleHtml(
