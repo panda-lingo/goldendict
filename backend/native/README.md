@@ -110,6 +110,9 @@ iconv. The runtime also installs the Qt offscreen QPA and image-format plugins.
 New or stale native indices can make initial startup slow; later starts reuse
 the writable index directory. Adjacent `metadata.toml` name and FTS overrides
 are applied through GoldenDict-ng's own metadata implementation.
+The combined REST service can then apply a dictionary-specific
+`<main filename>.json` name/language override; that gateway extension does not
+change this worker's raw protocol metadata.
 
 ## Protocol
 

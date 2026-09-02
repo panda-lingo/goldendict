@@ -34,6 +34,21 @@ const result = await view.client.suggestions("exam", { limit: 20 });
 console.log(result.suggestions);
 ```
 
+Dictionary discovery can be filtered by either language or by translation
+direction. Filters map to the backend's `language`, `source_language`, and
+`target_language` query parameters:
+
+```ts
+const dictionaries = await view.client.listDictionaries({
+  sourceLanguage: "en",
+  targetLanguage: "fr",
+});
+```
+
+The earlier `listDictionaries(abortSignal)` form remains supported; new code
+can instead pass the signal together with filters as `listDictionaries({
+language: "en", signal })`.
+
 Importing the package registers `<goldendict-view>` automatically. Call
 `defineGoldendictView("my-dictionary-view")` when a custom tag name is useful.
 

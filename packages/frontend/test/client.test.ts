@@ -55,6 +55,37 @@ describe("DictionaryClient", () => {
     );
   });
 
+  it("passes catalog language filters and preserves the AbortSignal call form", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(jsonResponse([])),
+    );
+    const client = new DictionaryClient({ fetch: fetchMock });
+
+    await client.listDictionaries({
+      language: " en ",
+      sourceLanguage: "en-US",
+      targetLanguage: "fr",
+    });
+    const controller = new AbortController();
+    await client.listDictionaries(controller.signal);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v1/dictionaries?language=en&source_language=en-US&target_language=fr",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/v1/dictionaries");
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+
+  it("rejects a blank catalog language filter", async () => {
+    const client = new DictionaryClient({ fetch: vi.fn() });
+
+    await expect(
+      client.listDictionaries({ language: "  " }),
+    ).rejects.toThrow("Dictionary language filters must not be empty");
+  });
+
   it("requests bounded suggestions with the same prefixed API client", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({

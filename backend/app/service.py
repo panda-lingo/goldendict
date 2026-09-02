@@ -15,6 +15,7 @@ from .adapters.native import (
 )
 from .catalog import DictionaryCatalog
 from .config import Settings
+from .dictionary_config import language_matches, normalize_language_tag
 from .errors import bad_request, not_found
 from .models import ArticleResponse, DictionaryInfo, LookupResponse, SuggestionsResponse
 from .text import normalize_headword
@@ -118,8 +119,44 @@ class DictionaryService:
             except Exception:
                 logger.exception("Failed to close GoldenDict-ng native worker")
 
-    def dictionaries(self) -> list[DictionaryInfo]:
-        return [self.info(adapter) for adapter in self.catalog.snapshot().adapters]
+    def dictionaries(
+        self,
+        language: str | None = None,
+        source_language: str | None = None,
+        target_language: str | None = None,
+    ) -> list[DictionaryInfo]:
+        """List dictionaries matching optional case-insensitive language tags.
+
+        ``language`` matches either side of a dictionary. Directional filters
+        can be combined with it and with each other; all supplied filters must
+        match.
+        """
+
+        language_filter = self._language_filter(language, field="language")
+        source_filter = self._language_filter(
+            source_language, field="sourceLanguage"
+        )
+        target_filter = self._language_filter(
+            target_language, field="targetLanguage"
+        )
+        result: list[DictionaryInfo] = []
+        for adapter in self.catalog.snapshot().adapters:
+            metadata = adapter.metadata
+            if language_filter is not None and not (
+                language_matches(metadata.source_language, language_filter)
+                or language_matches(metadata.target_language, language_filter)
+            ):
+                continue
+            if source_filter is not None and not language_matches(
+                metadata.source_language, source_filter
+            ):
+                continue
+            if target_filter is not None and not language_matches(
+                metadata.target_language, target_filter
+            ):
+                continue
+            result.append(self.info(adapter))
+        return result
 
     def lookup(
         self,
@@ -240,6 +277,19 @@ class DictionaryService:
                 maxLength=self.settings.max_query_length,
             )
         return query
+
+    @staticmethod
+    def _language_filter(value: str | None, *, field: str) -> str | None:
+        if value is None:
+            return None
+        try:
+            return normalize_language_tag(value)
+        except ValueError as error:
+            raise bad_request(
+                "invalidLanguageFilter",
+                f"{field} {error}",
+                field=field,
+            ) from error
 
     @staticmethod
     def _collect_suggestions(

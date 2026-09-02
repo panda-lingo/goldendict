@@ -4,20 +4,20 @@ GoldenDict Web separates the native dictionary engine from browser delivery
 without introducing a second parser.
 
 ```text
-read-only dictionary roots
-          |
-          v
+read-only dictionary roots              optional <main filename>.json
+          |                                           |
+          v                                           |
 all GoldenDict-ng local factories -> shared native catalog/indexes
-          |                              |
-          | batched article + prefix work|
-          v                              v
-JSON-lines worker -> thin FastAPI REST/resource gateway
-                              |
-                              v
-             @panda-lingo/goldendict iframe renderer
-                              |
-                              v
-                         consumer app
+          |                                           |
+          | batched article + prefix work             |
+          v                                           v
+JSON-lines worker -----------------> FastAPI REST/resource gateway
+                                                   |
+                                                   v
+                                  @panda-lingo/goldendict iframe renderer
+                                                   |
+                                                   v
+                                              consumer app
 ```
 
 The worker compiles all fourteen file-backed local factories from the pinned
@@ -25,6 +25,9 @@ GoldenDict-ng checkout. FastAPI validates roots, owns worker lifecycle, maps the
 native catalog to HTTP, and enforces resource response limits; it contains no
 dictionary-format implementation. Catalog publication is immutable after
 startup. There is no upload, runtime load/unload, or alternate parser path.
+GoldenDict-ng supplies detected names and languages; the gateway validates and
+applies the optional per-file JSON display-name/language overlay while it
+constructs that immutable catalog.
 
 Lookup is batched once across the selected catalog. The C++ worker overlaps
 GoldenDict-ng's shared synonym resolution with prefix work, then launches all
@@ -62,8 +65,9 @@ The default frontend layout is GoldenDict fidelity: the exact pinned base,
 print, and display-preset stylesheets load without the optional responsive
 override layer. Wrapper markup and interactions track
 `src/article_maker.cc` and `src/scripts/gd-builtin.js`; article fragments,
-resources, language metadata, and icons come directly from the same native
-checkout.
+resources, detected language metadata, and icons come directly from the same
+native checkout. A dictionary's validated JSON sidecar can override the name
+and language metadata exposed by the REST catalog and article wrapper.
 
 All behavior is pinned to GoldenDict-ng commit
 `5ad66765aa423d381025566bff990f7d8007be84`. See the

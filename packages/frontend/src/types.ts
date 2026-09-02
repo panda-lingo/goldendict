@@ -43,6 +43,14 @@ export interface DictionarySummary {
   wordCount?: number;
 }
 
+export interface DictionaryListOptions {
+  /** Match either the source or target language. */
+  language?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  signal?: AbortSignal;
+}
+
 export interface LookupArticle {
   dictionaryId: string;
   dictionaryName: string;

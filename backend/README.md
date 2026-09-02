@@ -68,6 +68,33 @@ restart.
 | `GOLDENDICT_SUGGESTION_LIMIT` | `20` | Suggestions returned with a lookup |
 | `GOLDENDICT_CORS_ORIGINS` | `*` | Comma-separated origins; add literal `null` for opaque-frame scripts |
 
+## Per-dictionary metadata
+
+GoldenDict-ng supplies the default name and detected source/target languages.
+To customize one dictionary, append `.json` to that dictionary's complete main
+filename in the read-only dictionary root. For example,
+`reference/oxford.mdx` uses `reference/oxford.mdx.json`:
+
+```json
+{
+  "name": "Team Oxford Dictionary",
+  "sourceLanguage": "en-US",
+  "targetLanguage": "fr"
+}
+```
+
+All fields are optional. An omitted or `null` value falls back to native
+metadata; either language may also be the string `"auto"` to state that
+fallback explicitly. The JSON name is the final public override, after any
+directory-level GoldenDict-ng `metadata.toml` name. Language values use
+BCP-47-style tags such as `en`, `pt-BR`, or `zh-Hant`; underscores are
+normalized to hyphens and responses use lowercase.
+
+Sidecars are strict UTF-8 JSON objects, are limited to 64 KiB, and cannot
+resolve outside the dictionary bundle. Unknown fields and invalid values make
+that dictionary unavailable and keep health unready with a diagnostic in
+`startupErrors`, so configuration mistakes are not silently ignored.
+
 ## REST contract
 
 The OpenAPI document is at `/openapi.json` and Swagger UI at `/docs`. JSON
@@ -76,11 +103,17 @@ fields are camelCase. Errors use
 
 ```text
 GET /api/v1/health
-GET /api/v1/dictionaries
+GET /api/v1/dictionaries?language=en&source_language=en&target_language=fr
 GET /api/v1/lookup/{word}?dictionary_ids=id1,id2
 GET /api/v1/suggestions?prefix=hel&dictionary_ids=id1&limit=20
 GET /api/v1/dictionaries/{id}/resources/{path}
 ```
+
+Catalog language filters are optional and case-insensitive. `language`
+matches either `sourceLanguage` or `targetLanguage`; the two directional
+filters match only their corresponding field. Supplied filters are combined
+with AND semantics. Basic language-range matching means `language=en` includes
+both `en` and region/script variants such as `en-US`.
 
 A lookup across multiple dictionaries is sent to the worker once. The worker
 overlaps GoldenDict-ng's shared synonym resolution with prefix work, then starts
@@ -112,9 +145,10 @@ make test-native-worker GOLDENDICT_NG_SOURCE=/absolute/goldendict-ng
 ```
 
 The gateway suite uses protocol doubles and verifies the native-only startup
-policy, one-operation batched lookup, worker lifecycle, resource containment,
-MIME handling, caching, and immutable OpenAPI surface. The native gate compiles
-all fourteen upstream factories, asserts the complete runtime format manifest,
+policy, per-dictionary metadata and language filters, one-operation batched
+lookup, worker lifecycle, resource containment, MIME handling, caching, and
+the immutable route surface. The native gate compiles all fourteen upstream
+factories, asserts the complete runtime format manifest,
 creates DSL and StarDict fixtures, checks lookup/suggestions/icons/resources,
 and starts the combined REST image.
 
