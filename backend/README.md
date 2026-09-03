@@ -149,8 +149,9 @@ policy, per-dictionary metadata and language filters, one-operation batched
 lookup, worker lifecycle, resource containment, MIME handling, caching, and
 the immutable route surface. The native gate compiles all fourteen upstream
 factories, asserts the complete runtime format manifest,
-creates DSL and StarDict fixtures, checks lookup/suggestions/icons/resources,
-and starts the combined REST image.
+creates DSL and StarDict fixtures, checks detected languages plus
+lookup/suggestions/icons/resources, and starts the combined REST image with a
+JSON-overridden dictionary to verify catalog filters and lookup metadata.
 
 See [upstream-compatibility.yaml](upstream-compatibility.yaml) and the
 [native worker guide](native/README.md) before changing the GoldenDict-ng pin.

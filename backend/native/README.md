@@ -166,8 +166,9 @@ make test-native-worker \
 
 The gate compiles the full source manifest and dependencies, runs the C++
 resource guard, asserts the fourteen-format ready contract, generates DSL and
-StarDict fixtures, and verifies metadata, lookup, suggestions, native PNG
-icons, resource traversal rejection, and combined API startup.
+StarDict fixtures, and verifies detected/overridden metadata, catalog language
+filters, lookup, suggestions, native PNG icons, resource traversal rejection,
+and combined API startup.
 
 Treat every pin change as a compatibility change:
 
