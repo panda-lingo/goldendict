@@ -52,6 +52,11 @@ Open <http://localhost:5173>. The API is also available at
 <http://localhost:8080/api/v1>. `GOLDENDICT_RELEASE` selects the matching
 container and npm package version and defaults to `0.1.8`; for example:
 
+The demo exposes each lookup as a shareable `word` query parameter. Opening a
+URL such as <http://localhost:5173/?word=ice%20cream> loads that result
+automatically. Searches and dictionary-internal lookup links update the URL,
+and browser Back/Forward navigation restores the matching result.
+
 ```bash
 GOLDENDICT_RELEASE=0.1.8 \
 GOLDENDICT_DICTIONARY_PATH=/absolute/path/to/dictionaries \

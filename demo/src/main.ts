@@ -45,9 +45,11 @@ const eventLog = element<HTMLOListElement>("event-log");
 const toast = element<HTMLDivElement>("toast");
 const demoControls = element<HTMLDetailsElement>("demo-controls");
 const compactLayout = globalThis.matchMedia("(max-width: 820px)");
+const defaultQuery = queryInput.value;
 let client = new DictionaryClient({ baseUrl: apiBaseInput.value });
 let dictionaries: DictionarySummary[] = [];
 let toastTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+let initialized = false;
 
 function syncDemoControls(event: MediaQueryList | MediaQueryListEvent): void {
   demoControls.open = !event.matches;
@@ -104,6 +106,45 @@ function selectedDictionaryIds(): string[] {
   return [...dictionaryList.querySelectorAll<HTMLInputElement>("input:checked")].map(
     (input) => input.value,
   );
+}
+
+function urlWord(): string | undefined {
+  const word = new URLSearchParams(globalThis.location.search).get("word")?.trim();
+  return word || undefined;
+}
+
+function updateUrlWord(word: string): void {
+  const url = new URL(globalThis.location.href);
+  if (url.searchParams.get("word") === word) {
+    return;
+  }
+  url.searchParams.set("word", word);
+  globalThis.history.pushState(null, "", url);
+}
+
+function lookupWord(word: string, updateUrl: boolean): void {
+  const normalizedWord = word.trim();
+  if (!normalizedWord) {
+    queryInput.focus();
+    return;
+  }
+  queryInput.value = normalizedWord;
+  if (updateUrl) {
+    updateUrlWord(normalizedWord);
+  }
+  const selected = selectedDictionaryIds();
+  dictionaryView.dictionaryIds = selected;
+  void dictionaryView.lookup(normalizedWord, selected);
+}
+
+function applyUrlWord(): void {
+  const word = urlWord();
+  if (word) {
+    lookupWord(word, false);
+    return;
+  }
+  queryInput.value = defaultQuery;
+  dictionaryView.clear();
 }
 
 function renderDictionaries(): void {
@@ -191,14 +232,7 @@ function applyModePalette(mode: ThemeMode): void {
 
 document.getElementById("search-form")?.addEventListener("submit", (event) => {
   event.preventDefault();
-  const word = queryInput.value.trim();
-  if (!word) {
-    queryInput.focus();
-    return;
-  }
-  const selected = selectedDictionaryIds();
-  dictionaryView.dictionaryIds = selected;
-  void dictionaryView.lookup(word, selected);
+  lookupWord(queryInput.value, true);
 });
 
 document.getElementById("refresh")?.addEventListener("click", () => {
@@ -263,6 +297,7 @@ document.getElementById("reset-theme")?.addEventListener("click", () => {
 dictionaryView.addEventListener(GOLDENDICT_EVENTS.lookup, (event) => {
   const detail = (event as CustomEvent<{ word: string }>).detail;
   queryInput.value = detail.word;
+  updateUrlWord(detail.word);
   logEvent(GOLDENDICT_EVENTS.lookup, detail);
 });
 dictionaryView.addEventListener(GOLDENDICT_EVENTS.stateChange, (event) => {
@@ -295,5 +330,17 @@ for (const eventName of [
   });
 }
 
-applyTheme();
-void refreshDictionaries();
+globalThis.addEventListener("popstate", () => {
+  if (initialized) {
+    applyUrlWord();
+  }
+});
+
+async function initialize(): Promise<void> {
+  applyTheme();
+  await refreshDictionaries();
+  initialized = true;
+  applyUrlWord();
+}
+
+void initialize();

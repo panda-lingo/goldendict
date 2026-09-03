@@ -101,6 +101,53 @@ async function geometryAtDeviceScaleFactor(deviceScaleFactor: number) {
   }
 }
 
+test("loads shareable word URLs and restores them with browser navigation", async ({
+  page,
+}) => {
+  const sharedWord = "ice cream/冰淇淋";
+  await page.goto(
+    `/?source=e2e&word=${encodeURIComponent(sharedWord)}#dictionary-result`,
+  );
+
+  await expect(page.locator("#connection-text")).toHaveText("1 dictionary ready");
+  await expect(page.locator("#query")).toHaveValue(sharedWord);
+  const view = page.locator("#dictionary-view");
+  await expect
+    .poll(() =>
+      view.evaluate((node) => {
+        const response = (
+          node as HTMLElement & { response?: { word?: string } }
+        ).response;
+        return response?.word;
+      }),
+    )
+    .toBe(sharedWord);
+  await expect(view.locator("iframe").contentFrame().locator(".headword")).toHaveText(
+    sharedWord,
+  );
+
+  await lookup(page, "hello");
+  let currentUrl = new URL(page.url());
+  expect(currentUrl.searchParams.get("word")).toBe("hello");
+  expect(currentUrl.searchParams.get("source")).toBe("e2e");
+  expect(currentUrl.hash).toBe("#dictionary-result");
+
+  await page.goBack();
+  currentUrl = new URL(page.url());
+  expect(currentUrl.searchParams.get("word")).toBe(sharedWord);
+  await expect(page.locator("#query")).toHaveValue(sharedWord);
+  await expect
+    .poll(() =>
+      view.evaluate((node) => {
+        const response = (
+          node as HTMLElement & { response?: { word?: string } }
+        ).response;
+        return response?.word;
+      }),
+    )
+    .toBe(sharedWord);
+});
+
 test("preserves authored fidelity and initializes sidecars on consecutive lookups", async ({
   page,
 }) => {
