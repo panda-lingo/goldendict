@@ -198,6 +198,14 @@ def main() -> None:
                     raise RuntimeError(
                         f"{format_name} metadata.toml name was not applied: {metadata}"
                     )
+                if format_name == "dsl" and (
+                    metadata.get("sourceLanguage") != "en"
+                    or metadata.get("targetLanguage") != "fr"
+                ):
+                    raise RuntimeError(
+                        "DSL in-file language headers were not detected: "
+                        f"{metadata}"
+                    )
                 icon_path = metadata.get("iconResourcePath")
                 if not isinstance(icon_path, str) or not icon_path:
                     raise RuntimeError(f"{format_name} native icon was not published: {metadata}")

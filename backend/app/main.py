@@ -138,8 +138,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get(f"{API_PREFIX}/dictionaries", response_model=list[DictionaryInfo], tags=["dictionaries"])
-    async def dictionaries() -> list[DictionaryInfo]:
-        return service.dictionaries()
+    async def dictionaries(
+        language: Annotated[str | None, Query()] = None,
+        source_language: Annotated[str | None, Query()] = None,
+        target_language: Annotated[str | None, Query()] = None,
+    ) -> list[DictionaryInfo]:
+        return service.dictionaries(language, source_language, target_language)
 
     @app.get(f"{API_PREFIX}/lookup/{{word:path}}", response_model=LookupResponse, tags=["lookup"])
     async def lookup(

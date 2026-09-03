@@ -120,3 +120,59 @@ def test_health_and_dictionary_list_contract(settings, dictionary_root: Path):
     assert health.json()["ready"] is True
     assert dictionaries.json()[0]["wordCount"] == 2
     assert dictionaries.json()[0]["resourceBaseUrl"].endswith("/resources/")
+
+
+def test_dictionary_list_filters_by_either_or_directional_language(
+    settings, dictionary_root: Path
+) -> None:
+    app = create_app(settings)
+    english_french = FakeAdapter(dictionary_root / "en-fr.mdx", "en-fr")
+    english_french.metadata = replace(
+        english_french.metadata,
+        source_language="en-US",
+        target_language="fr",
+    )
+    german_english = FakeAdapter(dictionary_root / "de-en.mdx", "de-en")
+    german_english.metadata = replace(
+        german_english.metadata,
+        source_language="de",
+        target_language="en",
+    )
+    japanese = FakeAdapter(dictionary_root / "ja.mdx", "ja")
+    japanese.metadata = replace(
+        japanese.metadata,
+        source_language="ja",
+        target_language=None,
+    )
+    app.state.dictionary_service.catalog.replace_all(
+        [english_french, german_english, japanese]
+    )
+
+    with TestClient(app) as client:
+        either = client.get("/api/v1/dictionaries?language=EN")
+        source = client.get("/api/v1/dictionaries?source_language=en")
+        target = client.get("/api/v1/dictionaries?target_language=en")
+        directed = client.get(
+            "/api/v1/dictionaries?source_language=en&target_language=fr"
+        )
+        missing = client.get("/api/v1/dictionaries?language=zh")
+
+    assert [item["id"] for item in either.json()] == ["en-fr", "de-en"]
+    assert [item["id"] for item in source.json()] == ["en-fr"]
+    assert [item["id"] for item in target.json()] == ["de-en"]
+    assert [item["id"] for item in directed.json()] == ["en-fr"]
+    assert missing.json() == []
+
+
+def test_dictionary_list_rejects_invalid_language_filter(settings) -> None:
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/dictionaries?language=not%20a%20language!")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == {
+        "code": "invalidLanguageFilter",
+        "message": "language must be a language tag such as 'en' or 'zh-Hant'",
+        "details": {"field": "language"},
+    }

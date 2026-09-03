@@ -145,7 +145,7 @@ The stable versioned surface is intentionally limited to dictionary operations:
 
 ```text
 GET    /api/v1/health
-GET    /api/v1/dictionaries
+GET    /api/v1/dictionaries?language=en&source_language=en&target_language=fr
 GET    /api/v1/lookup/{word}?dictionary_ids=id1,id2
 GET    /api/v1/suggestions?prefix=hel&limit=20
 GET    /api/v1/dictionaries/{id}/resources/{path}
@@ -157,8 +157,31 @@ catalog.
 
 ```bash
 curl http://localhost:8080/api/v1/dictionaries
+curl 'http://localhost:8080/api/v1/dictionaries?language=en'
 curl http://localhost:8080/api/v1/lookup/hello
 ```
+
+Each dictionary can have its own optional JSON metadata file. Append `.json`
+to the complete main filename—for example, `oaldpe.mdx` uses
+`oaldpe.mdx.json`:
+
+```json
+{
+  "name": "My Oxford Learner's Dictionary",
+  "sourceLanguage": "en",
+  "targetLanguage": "zh-Hant"
+}
+```
+
+Fields may be omitted. For either language, omission, `null`, or `"auto"`
+keeps the value detected by GoldenDict-ng from the dictionary. The per-file
+JSON name takes precedence over GoldenDict-ng's optional directory-level
+`metadata.toml` name. Language tags are case-insensitive and `_` is accepted
+as a separator; public responses use lowercase hyphenated tags.
+
+The `language` catalog filter matches either source or target. The directional
+`source_language` and `target_language` filters can be combined, and `en`
+also matches a more specific tag such as `en-US`.
 
 ## Frontend package
 
@@ -178,6 +201,9 @@ view.client = new DictionaryClient({
   baseUrl: "https://dictionary.example/api/v1",
 });
 const suggestions = await view.client.suggestions("exam", { limit: 20 });
+const englishDictionaries = await view.client.listDictionaries({
+  language: "en",
+});
 view.theme = {
   brandName: "Acme Lexicon",
   preset: "modern",

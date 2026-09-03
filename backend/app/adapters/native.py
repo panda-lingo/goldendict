@@ -13,6 +13,7 @@ import subprocess
 from threading import RLock, Thread
 from typing import Any, Final, TextIO
 
+from ..dictionary_config import load_dictionary_config
 from ..text import normalize_resource_key
 from ..transform import (
     decode_css,
@@ -341,14 +342,15 @@ class NativeDictionaryAdapter(DictionaryAdapter):
     ) -> None:
         self._client = client
         self._max_resource_bytes = max(0, max_resource_bytes)
+        config = load_dictionary_config(descriptor.main_path)
         self.metadata = DictionaryMetadata(
             dictionary_id=descriptor.dictionary_id,
-            name=descriptor.name,
+            name=config.name or descriptor.name,
             format=_FORMAT_NAMES.get(descriptor.format.casefold(), descriptor.format.casefold()),
             word_count=descriptor.word_count,
             main_path=descriptor.main_path,
-            source_language=descriptor.source_language,
-            target_language=descriptor.target_language,
+            source_language=config.source_language or descriptor.source_language,
+            target_language=config.target_language or descriptor.target_language,
             icon_resource_path=descriptor.icon_resource_path,
         )
 

@@ -1,5 +1,6 @@
 import type {
   DictionaryClientOptions,
+  DictionaryListOptions,
   DictionarySummary,
   LookupOptions,
   LookupResponse,
@@ -54,6 +55,29 @@ function normalizeDictionary(value: DictionaryLike): DictionarySummary {
   };
 }
 
+function isAbortSignal(value: object): value is AbortSignal {
+  return (
+    "aborted" in value &&
+    "addEventListener" in value &&
+    typeof value.addEventListener === "function"
+  );
+}
+
+function addLanguageFilter(
+  query: URLSearchParams,
+  key: string,
+  value: string | undefined,
+): void {
+  if (value === undefined) {
+    return;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new TypeError("Dictionary language filters must not be empty");
+  }
+  query.set(key, normalized);
+}
+
 async function readResponseBody(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
@@ -83,10 +107,24 @@ export class DictionaryClient {
     this.credentials = options.credentials ?? "same-origin";
   }
 
-  async listDictionaries(signal?: AbortSignal): Promise<DictionarySummary[]> {
+  async listDictionaries(
+    options?: DictionaryListOptions,
+  ): Promise<DictionarySummary[]>;
+  async listDictionaries(signal?: AbortSignal): Promise<DictionarySummary[]>;
+  async listDictionaries(
+    optionsOrSignal: DictionaryListOptions | AbortSignal = {},
+  ): Promise<DictionarySummary[]> {
+    const options = isAbortSignal(optionsOrSignal)
+      ? { signal: optionsOrSignal }
+      : optionsOrSignal;
+    const query = new URLSearchParams();
+    addLanguageFilter(query, "language", options.language);
+    addLanguageFilter(query, "source_language", options.sourceLanguage);
+    addLanguageFilter(query, "target_language", options.targetLanguage);
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
     const body = await this.request<
       DictionaryLike[] | { dictionaries: DictionaryLike[] }
-    >("/dictionaries", { signal });
+    >(`/dictionaries${suffix}`, { signal: options.signal });
     const dictionaries = Array.isArray(body) ? body : body.dictionaries;
     return dictionaries.map(normalizeDictionary);
   }

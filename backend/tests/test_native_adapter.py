@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import textwrap
@@ -204,8 +205,19 @@ def test_startup_scan_publishes_only_the_goldendict_worker_catalog(tmp_path: Pat
     root.mkdir()
     mdx = root / "fixture.mdx"
     mdx.write_bytes(b"fixture")
-    # The REST process never attempts to parse files itself. GoldenDict-ng is
-    # the sole catalog authority, including for formats it elects not to load.
+    (root / "fixture.mdx.json").write_text(
+        json.dumps(
+            {
+                "name": "Personal Native Fixture",
+                "sourceLanguage": "auto",
+                "targetLanguage": "pt-BR",
+            }
+        ),
+        encoding="utf-8",
+    )
+    # The REST process never attempts to parse dictionary data itself.
+    # GoldenDict-ng is the sole catalog authority, including for formats it
+    # elects not to load; the JSON file only overlays published metadata.
     (root / "not-published.dsl").write_text(
         "#NAME ignored-by-fake-worker\nhello\n definition\n", encoding="utf-8"
     )
@@ -222,9 +234,14 @@ def test_startup_scan_publishes_only_the_goldendict_worker_catalog(tmp_path: Pat
     try:
         assert service.ready is True
         assert [item.id for item in service.dictionaries()] == ["native-fixture"]
+        assert service.dictionaries()[0].name == "Personal Native Fixture"
+        assert service.dictionaries()[0].source_language == "en"
+        assert service.dictionaries()[0].target_language == "pt-br"
         response = service.lookup("hello", ["native-fixture"])
         assert response.articles[0].format == "mdict"
-        assert response.articles[0].dictionary_name == "Native Fixture"
+        assert response.articles[0].dictionary_name == "Personal Native Fixture"
+        assert response.articles[0].source_language == "en"
+        assert response.articles[0].target_language == "pt-br"
         assert response.articles[0].icon_url is not None
         assert response.articles[0].icon_url.endswith("/resources/icon.png")
         assert response.suggestions == ["Hello"]
@@ -234,6 +251,39 @@ def test_startup_scan_publishes_only_the_goldendict_worker_catalog(tmp_path: Pat
         assert (tmp_path / "indices" / "requests.log").read_text(
             encoding="utf-8"
         ).splitlines() == ["lookup"]
+    finally:
+        service.close()
+
+
+def test_invalid_dictionary_json_keeps_service_unready_and_omits_dictionary(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "dictionaries"
+    root.mkdir()
+    (root / "fixture.mdx").write_bytes(b"fixture")
+    (root / "fixture.mdx.json").write_text(
+        '{"sourceLangauge":"en"}',
+        encoding="utf-8",
+    )
+    service = DictionaryService(
+        Settings(
+            dictionary_roots=(root,),
+            native_worker=_fake_worker(tmp_path),
+            native_index_dir=tmp_path / "indices",
+            native_startup_timeout_seconds=2,
+            native_request_timeout_seconds=2,
+        )
+    )
+
+    service.scan()
+
+    try:
+        assert service.ready is False
+        assert service.dictionaries() == []
+        assert any(
+            "fixture.mdx: native metadata: DictionaryConfigError:" in error
+            for error in service.startup_errors
+        )
     finally:
         service.close()
 
